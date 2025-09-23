@@ -1,0 +1,1 @@
+Create an n8n agent similar to agent.py but instead of using openai API, the agent should send the data to an n8n webhook and wait for the response. let's consider if the webhook should be synchronous or not based on best practices. ask me questions about the design and the tech stack before making any move., 
