@@ -6,7 +6,13 @@
       "Bash(pip show:*)",
       "Bash(.venv\\Scripts\\python.exe -m ensurepip:*)",
       "Bash(.\\.venv\\Scripts\\python.exe -m ensurepip:*)",
-      "Bash(uv pip install:*)"
+      "Bash(uv pip install:*)",
+      "WebFetch(domain:docs.livekit.io)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(uv cache clean:*)",
+      "Read(//c/Users/fbrun/.cache/huggingface/**)",
+      "Bash(timeout 40 uv run:*)"
     ],
     "deny": [],
     "ask": []

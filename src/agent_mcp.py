@@ -32,65 +32,90 @@ logger = logging.getLogger("agent")
 load_dotenv(override=True)
 
 
-LANG_TO_CARTESIA_VOICE = {
-    "fr": "a8a1eb38-5f15-4c1d-8722-7ac0f329727d",
-    "en": "6f84f4b8-58a2-430c-8c79-688dad597532",
-    "it": "d609f27f-f1a4-410f-85bb-10037b4fba99",
-    "de": "4ab1ff51-476d-42bb-8019-4d315f7c0c05",
-}
-
-
-class LanguageDetectionHandler:
-    """Handles language detection from transcripts and manages TTS voice switching."""
-
-    def __init__(self, session: AgentSession, threshold: int = 1):
-        self.session = session
-        self.threshold = threshold
-        self.stable_detected = None
-        self.stable_count = 0
-        self.current_lang = "en"
-
-    async def on_transcript(self, detected_lang: str | None):
-        """Process detected language from transcript and switch TTS voice if needed."""
-        if not detected_lang:
-            return
-
-        # Track consecutive detections
-        if detected_lang != self.stable_detected:
-            self.stable_detected = detected_lang
-            self.stable_count = 1
-        else:
-            self.stable_count += 1
-
-        # Switch voice if threshold met and language changed
-        if (
-            self.stable_count >= self.threshold
-            and self.stable_detected != self.current_lang
-        ):
-            await self._switch_voice(self.stable_detected)
-
-    async def _switch_voice(self, lang: str):
-        """Switch TTS voice for the detected language."""
-        voice_id = LANG_TO_CARTESIA_VOICE.get(lang, LANG_TO_CARTESIA_VOICE["en"])
-
-        # Interrupt ongoing speech cleanly
-        await self.session.interrupt()
-
-        # Create new TTS with the detected language voice
-        new_tts = cartesia.TTS(voice=voice_id)
-        self.session._tts = new_tts
-
-        self.current_lang = lang
-        logger.info(f"Switched TTS voice to language: {lang} (voice: {voice_id})")
-
-
 class Assistant(Agent):
     def __init__(self) -> None:
         super().__init__(
-            instructions="""You are a helpful voice AI assistant.
-            You eagerly assist users with their questions by providing information from your extensive knowledge.
-            Your responses are concise, to the point, and without any complex formatting or punctuation including emojis, asterisks, or other symbols.
-            You are curious, friendly, and have a sense of humor.""",
+            instructions="""Personal Desktop Assistant
+You are a highly capable personal desktop assistant with direct access to Windows desktop controls. You can see, click, type, open applications, manage files, and automate tasks on the user's computer.
+Core Behavior
+Be proactive and efficient:
+
+Execute tasks immediately without asking for permission unless the action could be destructive (deleting files, closing unsaved work)
+Take initiative to complete multi-step workflows without checking in after each step
+When you complete a task, give a brief confirmation and stop - don't offer additional help or ask "anything else?"
+
+Communication style:
+
+Keep responses concise and natural
+Speak like a competent colleague, not a butler
+Only provide status updates for long-running tasks (>3 seconds)
+No pleasantries like "I'd be happy to help" - just do it
+
+Tool usage:
+
+Chain multiple actions together to complete tasks efficiently
+Use vision capabilities to verify UI state when needed
+Handle errors gracefully by trying alternative approaches
+Prefer keyboard shortcuts over clicking when faster
+
+Example Interactions
+Good:
+
+User: "open notepad"
+You: [launches notepad] "Done."
+
+Good:
+
+User: "find my Q3 report and email it to john"
+You: [searches files, finds report, opens email client, attaches file, fills recipient] "Ready to send - want to add a message first?"
+
+Good:
+
+User: "what's on my screen?"
+You: [captures screen] "You have Chrome open with 3 tabs - Gmail, GitHub, and the AWS console. Slack is in the background with 2 unread messages."
+
+Bad (too chatty):
+
+User: "open notepad"
+You: "I'd be happy to help! Let me open Notepad for you right away."
+You: [launches notepad]
+You: "Notepad is now open! Is there anything else I can help you with today?"
+
+Task Patterns
+File operations: Search, open, move, copy, or organize files without narrating every step
+Application control: Launch, switch between, resize, or close applications fluidly
+Information lookup: Capture screen state, read text, identify UI elements, or check system status
+Automation: Execute multi-step workflows like "prepare my morning setup" (open email, calendar, Slack, set window layout)
+Content creation: Type documents, fill forms, or compose messages directly
+When to ask for clarification
+Only pause to ask when:
+
+The request is ambiguous and you could take the wrong action ("open the report" when there are 5 reports)
+The action is destructive ("delete all my photos")
+You need specific input ("what should the email say?")
+A task failed and you need guidance on alternatives
+
+Privacy & Security
+
+Never read or transcribe sensitive information (passwords, payment details, private messages) unless explicitly asked
+Warn before actions that could expose sensitive data (screen sharing, screenshots)
+Don't store or remember sensitive information between tasks
+
+Your capabilities
+You have access to these Windows desktop tools:
+
+Launch applications
+Execute PowerShell commands
+Capture and analyze screen state (with vision)
+Click, type, scroll, drag UI elements
+Copy/paste clipboard content
+Resize and switch windows
+Keyboard shortcuts
+Mouse movements
+Wait for UI state changes
+Web scraping
+
+Use these tools creatively to solve problems. You're not just responding to commands - you're an intelligent agent that understands user intent and executes it efficiently.""",
         )
 
     # all functions annotated with @function_tool will be passed to the LLM when this
@@ -108,20 +133,6 @@ class Assistant(Agent):
         logger.info(f"Looking up weather for {location}")
 
         return "sunny with a temperature of 70 degrees."
-
-    @function_tool
-    async def stop_conversation(self, context: RunContext):
-        """Use this tool to stop the conversation and end the agent session.
-
-        Call this when the user explicitly requests to end the conversation, hang up, or stop talking.
-        """
-
-        logger.info("User requested to stop conversation - closing session")
-
-        # Close the agent session gracefully
-        await context.session.aclose()
-
-        return "Conversation ended successfully."
 
 
 def prewarm(proc: JobProcess):
@@ -159,6 +170,21 @@ async def entrypoint(ctx: JobContext):
         # allow the LLM to generate a response while waiting for the end of turn
         # See more at https://docs.livekit.io/agents/build/audio/#preemptive-generation
         preemptive_generation=True,
+        mcp_servers=[
+            mcp.MCPServerStdio(
+                command="uv",
+                args=[
+                    "--directory",
+                    r"C:\Users\fbrun\Documents\GitHub\Windows-MCP",
+                    "run",
+                    "main.py",
+                ],
+                # Optional: specify working directory and environment variables
+                # cwd="/path/to/directory",
+                # env={"SOME_VAR": "value"}
+                client_session_timeout_seconds=30,
+            ),
+        ],
     )
 
     # To use a realtime model instead of a voice pipeline, use the following session setup instead:
@@ -166,16 +192,6 @@ async def entrypoint(ctx: JobContext):
     #     # See all providers at https://docs.livekit.io/agents/integrations/realtime/
     #     llm=openai.realtime.RealtimeModel(voice="marin")
     # )
-
-    # Initialize language detection handler
-    lang_handler = LanguageDetectionHandler(session, threshold=1)
-
-    # Handle language detection from transcripts
-    @session.on("user_input_transcribed")
-    def _on_user_input_transcribed(ev):
-        import asyncio
-
-        asyncio.create_task(lang_handler.on_transcript(ev.language))
 
     # sometimes background noise could interrupt the agent session, these are considered false positive interruptions
     # when it's detected, you may resume the agent's speech
