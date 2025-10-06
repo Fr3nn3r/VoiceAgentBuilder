@@ -19,16 +19,12 @@ from livekit.agents import (
 )
 from livekit.agents.llm import function_tool
 from livekit.plugins import (
-    cartesia,
     deepgram,
+    elevenlabs,
     noise_cancellation,
     openai,
     silero,
 )
-
-# Importing plugins individually to debug
-from livekit.plugins import silero
-from livekit.plugins import openai
 
 # TODO: Fix plugin imports - commenting out temporarily to test HuggingFace auth
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
@@ -38,16 +34,13 @@ logger = logging.getLogger("agent")
 load_dotenv(override=True)
 
 
-LANG_TO_CARTESIA_VOICE = {
-    "fr": "a8a1eb38-5f15-4c1d-8722-7ac0f329727d",
-    "en": "6f84f4b8-58a2-430c-8c79-688dad597532",
-    "it": "d609f27f-f1a4-410f-85bb-10037b4fba99",
-    "de": "4ab1ff51-476d-42bb-8019-4d315f7c0c05",
-}
+# ElevenLabs multilingual voice handles all languages automatically
+# River: Neutral, calm, supports en/it/fr/pt/zh
+ELEVENLABS_VOICE_ID = "SAz9YHcvj6GT2YYXdXww"
 
 
 class LanguageDetectionHandler:
-    """Handles language detection from transcripts and manages TTS voice switching."""
+    """Handles language detection from transcripts for logging purposes."""
 
     def __init__(self, session: AgentSession, threshold: int = 1):
         self.session = session
@@ -57,7 +50,7 @@ class LanguageDetectionHandler:
         self.current_lang = "en"
 
     async def on_transcript(self, detected_lang: str | None):
-        """Process detected language from transcript and switch TTS voice if needed."""
+        """Log detected language from transcript. ElevenLabs multilingual voice handles all languages automatically."""
         if not detected_lang:
             return
 
@@ -68,26 +61,13 @@ class LanguageDetectionHandler:
         else:
             self.stable_count += 1
 
-        # Switch voice if threshold met and language changed
+        # Log language change if threshold met
         if (
             self.stable_count >= self.threshold
             and self.stable_detected != self.current_lang
         ):
-            await self._switch_voice(self.stable_detected)
-
-    async def _switch_voice(self, lang: str):
-        """Switch TTS voice for the detected language."""
-        voice_id = LANG_TO_CARTESIA_VOICE.get(lang, LANG_TO_CARTESIA_VOICE["en"])
-
-        # Interrupt ongoing speech cleanly
-        await self.session.interrupt()
-
-        # Create new TTS with the detected language voice
-        new_tts = cartesia.TTS(voice=voice_id)
-        self.session._tts = new_tts
-
-        self.current_lang = lang
-        logger.info(f"Switched TTS voice to language: {lang} (voice: {voice_id})")
+            self.current_lang = detected_lang
+            logger.info(f"Language detected: {detected_lang}")
 
 
 class Assistant(Agent):
@@ -143,17 +123,20 @@ async def entrypoint(ctx: JobContext):
 
     llm = openai.LLM(model="gpt-4o")
 
-    # Set up a voice AI pipeline using OpenAI, Cartesia, Deepgram, and the LiveKit turn detector
+    # Set up a voice AI pipeline using OpenAI, ElevenLabs, Deepgram, and the LiveKit turn detector
     session = AgentSession(
         # A Large Language Model (LLM) is your agent's brain, processing user input and generating a response
         # See all providers at https://docs.livekit.io/agents/integrations/llm/
         llm=llm,
         # Speech-to-text (STT) is your agent's ears, turning the user's speech into text that the LLM can understand
         # See all providers at https://docs.livekit.io/agents/integrations/stt/
-        stt=deepgram.STT(model="nova-3", language="multi"),  # TODO: Fix deepgram import
+        stt=deepgram.STT(model="nova-3", language="multi"),
         # Text-to-speech (TTS) is your agent's voice, turning the LLM's text into speech that the user can hear
         # See all providers at https://docs.livekit.io/agents/integrations/tts/
-        tts=cartesia.TTS(voice="6f84f4b8-58a2-430c-8c79-688dad597532"),
+        tts=elevenlabs.TTS(
+            voice_id=ELEVENLABS_VOICE_ID,
+            model="eleven_multilingual_v2",
+        ),
         # VAD and turn detection are used to determine when the user is speaking and when the agent should respond
         # See more at https://docs.livekit.io/agents/build/turns
         turn_detection=MultilingualModel(),

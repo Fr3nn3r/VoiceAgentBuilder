@@ -14,8 +14,7 @@ version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "langsmith" },
-    { name = "livekit-agents", extra = ["cartesia", "deepgram", "mcp", "openai", "silero", "turn-detector"] },
-    { name = "livekit-plugins-cartesia" },
+    { name = "livekit-agents", extra = ["deepgram", "elevenlabs", "mcp", "openai", "silero", "turn-detector"] },
     { name = "livekit-plugins-noise-cancellation" },
     { name = "python-dotenv" },
 ]
@@ -30,8 +29,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "langsmith", specifier = ">=0.1.0" },
-    { name = "livekit-agents", extras = ["cartesia", "deepgram", "mcp", "openai", "silero", "turn-detector"], specifier = "~=1.2" },
-    { name = "livekit-plugins-cartesia", specifier = ">=1.2.9" },
+    { name = "livekit-agents", extras = ["elevenlabs", "deepgram", "mcp", "openai", "silero", "turn-detector"], specifier = "~=1.2" },
     { name = "livekit-plugins-noise-cancellation", specifier = "~=0.2" },
     { name = "python-dotenv" },
 ]
@@ -1089,9 +1087,6 @@ wheels = [
 ]
 
 [package.optional-dependencies]
-cartesia = [
-    { name = "livekit-plugins-cartesia" },
-]
 codecs = [
     { name = "av" },
     { name = "numpy", version = "2.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
@@ -1100,6 +1095,9 @@ codecs = [
 ]
 deepgram = [
     { name = "livekit-plugins-deepgram" },
+]
+elevenlabs = [
+    { name = "livekit-plugins-elevenlabs" },
 ]
 images = [
     { name = "pillow" },
@@ -1166,18 +1164,6 @@ wheels = [
 ]
 
 [[package]]
-name = "livekit-plugins-cartesia"
-version = "1.2.9"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "livekit-agents" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/1a/1c/4966d724970fbb1a3354a77285a82143170fcacdaa714c0c32f74b87d18c/livekit_plugins_cartesia-1.2.9.tar.gz", hash = "sha256:4495df3f942d9b387da566fef092a02f3610d7317b936bece581a6d006fd5889", size = 10540 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/99/81/f6939f4413d7efa0f47df05794715b778342adc0b2c2486e1b930b3174b6/livekit_plugins_cartesia-1.2.9-py3-none-any.whl", hash = "sha256:d2424d5d574e95318b845b16a590955da986f9c0d078f3faf6ae1240c9cf04e2", size = 13041 },
-]
-
-[[package]]
 name = "livekit-plugins-deepgram"
 version = "1.2.9"
 source = { registry = "https://pypi.org/simple" }
@@ -1190,6 +1176,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/40/58/0d2076e96848d75bc59d86166edd7623cbff8f19291f8a86505fb3e92f36/livekit_plugins_deepgram-1.2.9.tar.gz", hash = "sha256:9e9930a6d56f68dcb95b900710d1326f02cff4b49b2232c98b18488ea1ba3016", size = 13367 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/60/16/1fb0af6f19bc4c45a57caebf70f0fa8c10e6dbad088e573261ec0fbeffe3/livekit_plugins_deepgram-1.2.9-py3-none-any.whl", hash = "sha256:21249331bb90f980c576adcfd827efbb988ac2641f88e9823d46a3ede22d9e02", size = 15435 },
+]
+
+[[package]]
+name = "livekit-plugins-elevenlabs"
+version = "1.2.9"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "livekit-agents", extra = ["codecs"] },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/1b/cc/b03f2a59fc92f3b012c31f0b9164f26d945577c8042e3b4207406aff5a9b/livekit_plugins_elevenlabs-1.2.9.tar.gz", hash = "sha256:50dcd8b78cf19ef1f7fce418e06b5351b50fb307350ca0e430d317329249d221", size = 12062 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fb/d1/4ced02e4c0b5bf21d024bb9db39b06f1a8f58d80baeafca39cb43177c7f4/livekit_plugins_elevenlabs-1.2.9-py3-none-any.whl", hash = "sha256:29448403ad73806b794b0253e7e8de9913cb91497474272d0a54baf6c340da7f", size = 13909 },
 ]
 
 [[package]]
