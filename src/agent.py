@@ -18,7 +18,13 @@ from livekit.agents import (
     mcp,
 )
 from livekit.agents.llm import function_tool
-from livekit.plugins import cartesia, deepgram, noise_cancellation, openai, silero
+from livekit.plugins import (
+    cartesia,
+    deepgram,
+    noise_cancellation,
+    openai,
+    silero,
+)
 
 # Importing plugins individually to debug
 from livekit.plugins import silero
@@ -85,13 +91,12 @@ class LanguageDetectionHandler:
 
 
 class Assistant(Agent):
-    def __init__(self) -> None:
-        super().__init__(
-            instructions="""You are a helpful voice AI assistant.
-            You eagerly assist users with their questions by providing information from your extensive knowledge.
-            Your responses are concise, to the point, and without any complex formatting or punctuation including emojis, asterisks, or other symbols.
-            You are curious, friendly, and have a sense of humor.""",
-        )
+    def __init__(self, instructions_path: str = "prompts/shushu.md") -> None:
+        # Load instructions from file
+        with open(instructions_path, "r", encoding="utf-8") as f:
+            instructions = f.read()
+
+        super().__init__(instructions=instructions)
 
     # all functions annotated with @function_tool will be passed to the LLM when this
     # agent is active
@@ -148,9 +153,7 @@ async def entrypoint(ctx: JobContext):
         stt=deepgram.STT(model="nova-3", language="multi"),  # TODO: Fix deepgram import
         # Text-to-speech (TTS) is your agent's voice, turning the LLM's text into speech that the user can hear
         # See all providers at https://docs.livekit.io/agents/integrations/tts/
-        tts=cartesia.TTS(
-            voice="6f84f4b8-58a2-430c-8c79-688dad597532"
-        ),  # TODO: Fix cartesia import
+        tts=cartesia.TTS(voice="6f84f4b8-58a2-430c-8c79-688dad597532"),
         # VAD and turn detection are used to determine when the user is speaking and when the agent should respond
         # See more at https://docs.livekit.io/agents/build/turns
         turn_detection=MultilingualModel(),
