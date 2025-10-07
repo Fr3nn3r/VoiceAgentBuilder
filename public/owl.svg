@@ -1,0 +1,42 @@
+<svg width="300" height="400" viewBox="0 0 300 400" xmlns="http://www.w3.org/2000/svg">
+  <!-- Body -->
+  <ellipse id="body" cx="150" cy="250" rx="80" ry="100" fill="#8B7355" />
+
+  <!-- Head -->
+  <g id="head">
+    <circle cx="150" cy="120" r="70" fill="#A0826D" />
+  </g>
+
+  <!-- Left Wing -->
+  <ellipse id="left-wing" cx="80" cy="240" rx="35" ry="60" fill="#6B5D4F" transform="rotate(-20 80 240)" />
+
+  <!-- Right Wing -->
+  <ellipse id="right-wing" cx="220" cy="240" rx="35" ry="60" fill="#6B5D4F" transform="rotate(20 220 240)" />
+
+  <!-- Left Eye Background -->
+  <circle id="left-eye-bg" cx="130" cy="110" r="25" fill="#FFFFFF" />
+
+  <!-- Right Eye Background -->
+  <circle id="right-eye-bg" cx="170" cy="110" r="25" fill="#FFFFFF" />
+
+  <!-- Left Eye Pupil -->
+  <circle id="left-eye" cx="130" cy="110" r="12" fill="#2C2C2C" />
+
+  <!-- Right Eye Pupil -->
+  <circle id="right-eye" cx="170" cy="110" r="12" fill="#2C2C2C" />
+
+  <!-- Beak Top -->
+  <polygon id="beak-top" points="150,130 140,145 160,145" fill="#FFA500" />
+
+  <!-- Beak Bottom -->
+  <polygon id="beak-bottom" points="140,145 160,145 150,150" fill="#FF8C00" />
+
+  <!-- Chest LED -->
+  <circle id="chest-led" cx="150" cy="250" r="8" fill="#4A90E2" opacity="0.6" />
+
+  <!-- Feet -->
+  <g id="feet">
+    <ellipse cx="130" cy="350" rx="15" ry="8" fill="#FFA500" />
+    <ellipse cx="170" cy="350" rx="15" ry="8" fill="#FFA500" />
+  </g>
+</svg>

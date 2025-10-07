@@ -156,12 +156,43 @@ async def entrypoint(ctx: JobContext):
     # Initialize language detection handler
     lang_handler = LanguageDetectionHandler(session, threshold=1)
 
+    # Send animation events to frontend for owl avatar
+    async def send_animation_event(event_type: str):
+        """Send animation event via data channel to frontend"""
+        import json
+
+        payload = json.dumps({"type": "animation_event", "event": event_type})
+        await ctx.room.local_participant.publish_data(
+            payload.encode("utf-8"), reliable=True
+        )
+
     # Handle language detection from transcripts
     @session.on("user_input_transcribed")
     def _on_user_input_transcribed(ev):
         import asyncio
 
         asyncio.create_task(lang_handler.on_transcript(ev.language))
+
+    # Send animation events based on agent state
+    @session.on("agent_state_changed")
+    def _on_agent_state_changed(ev):
+        import asyncio
+
+        logger.info(f"Agent state changed: {ev.old_state} -> {ev.new_state}")
+        if ev.new_state == "thinking":
+            asyncio.create_task(send_animation_event("thinking"))
+        elif ev.new_state == "speaking":
+            asyncio.create_task(send_animation_event("speaking_start"))
+        elif ev.new_state == "listening":
+            asyncio.create_task(send_animation_event("speaking_stop"))
+
+    # Send speaking event when new speech is created
+    @session.on("speech_created")
+    def _on_speech_created(ev):
+        import asyncio
+
+        logger.info("Speech created, agent will speak")
+        asyncio.create_task(send_animation_event("speaking_start"))
 
     # sometimes background noise could interrupt the agent session, these are considered false positive interruptions
     # when it's detected, you may resume the agent's speech
@@ -192,6 +223,21 @@ async def entrypoint(ctx: JobContext):
 
     # Join the room and connect to the user
     await ctx.connect()
+
+    # Log connection info for owl avatar frontend
+    room_url = os.getenv("LIVEKIT_URL", "wss://your-livekit-server.livekit.cloud")
+    logger.info("=" * 60)
+    logger.info("OWL AVATAR CONNECTION INFO")
+    logger.info("=" * 60)
+    logger.info(f"Room URL: {room_url}")
+    logger.info(f"Room Name: {ctx.room.name}")
+    logger.info(f"Agent Identity: {ctx.room.local_participant.identity}")
+    logger.info("")
+    logger.info("To connect the owl avatar frontend:")
+    logger.info("1. Open http://localhost:8080")
+    logger.info(f"2. Enter Room URL: {room_url}")
+    logger.info("3. Generate a participant token with room: " + ctx.room.name)
+    logger.info("=" * 60)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Agent - Owl Avatar</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/livekit-client@2.5.8/dist/livekit-client.umd.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        #root {
+            width: 100%;
+            max-width: 600px;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .status {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .status.idle { color: #666; }
+        .status.listening { color: #4A90E2; }
+        .status.thinking { color: #9B59B6; }
+        .status.speaking { color: #E74C3C; }
+        .owl-container {
+            margin: 30px 0;
+            display: flex;
+            justify-content: center;
+        }
+        .controls {
+            margin-top: 30px;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 5px;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .error {
+            color: #E74C3C;
+            margin-top: 15px;
+            padding: 10px;
+            background: #FADBD8;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        const { Room, RoomEvent } = LivekitClient;
+
+        // OwlAvatar Component
+        function OwlAvatar({ state, amplitude }) {
+            const svgRef = useRef(null);
+            const animationFrameRef = useRef(null);
+            const blinkTimerRef = useRef(null);
+            const lastBlinkRef = useRef(Date.now());
+
+            // Use refs to avoid stale closure in animation loop
+            const stateRef = useRef(state);
+            const amplitudeRef = useRef(amplitude);
+
+            useEffect(() => {
+                stateRef.current = state;
+            }, [state]);
+
+            useEffect(() => {
+                amplitudeRef.current = amplitude;
+            }, [amplitude]);
+
+            useEffect(() => {
+                if (!svgRef.current) return;
+
+                console.log('Loading owl SVG...');
+                // Load SVG
+                fetch('/owl.svg')
+                    .then(res => res.text())
+                    .then(svgContent => {
+                        console.log('SVG loaded, length:', svgContent.length);
+                        svgRef.current.innerHTML = svgContent;
+                        console.log('Starting animation loops...');
+                        startAnimationLoop();
+                        startBlinkLoop();
+                    })
+                    .catch(err => console.error('Failed to load SVG:', err));
+
+                return () => {
+                    if (animationFrameRef.current) {
+                        cancelAnimationFrame(animationFrameRef.current);
+                    }
+                    if (blinkTimerRef.current) {
+                        clearTimeout(blinkTimerRef.current);
+                    }
+                };
+            }, []);
+
+            const startAnimationLoop = () => {
+                const animate = () => {
+                    updateOwlAnimation();
+                    animationFrameRef.current = requestAnimationFrame(animate);
+                };
+                animate();
+            };
+
+            const updateOwlAnimation = () => {
+                if (!svgRef.current) return;
+
+                const svg = svgRef.current.querySelector('svg');
+                if (!svg) {
+                    console.error('SVG element not found in DOM');
+                    return;
+                }
+
+                const head = svg.querySelector('#head');
+                const body = svg.querySelector('#body');
+                const beakTop = svg.querySelector('#beak-top');
+                const beakBottom = svg.querySelector('#beak-bottom');
+                const leftWing = svg.querySelector('#left-wing');
+                const rightWing = svg.querySelector('#right-wing');
+                const chestLed = svg.querySelector('#chest-led');
+
+                const time = Date.now() / 1000;
+                const breathScale = 1 + Math.sin(time * 2) * 0.02;
+
+                if (body) {
+                    body.setAttribute('transform', `scale(${breathScale})`);
+                    body.style.transformOrigin = '150px 250px';
+                }
+
+                // Use refs to get current values in animation loop
+                const currentState = stateRef.current;
+                const currentAmplitude = amplitudeRef.current;
+
+                // Debug state and amplitude
+                if (window.debugCounter === undefined) window.debugCounter = 0;
+                window.debugCounter++;
+                if (window.debugCounter % 120 === 0) {
+                    console.log('Animation state:', currentState, 'Amplitude:', currentAmplitude.toFixed(3));
+                }
+
+                if (currentState === 'thinking') {
+                    if (head) {
+                        const tilt = Math.sin(time * 3) * 5;
+                        head.setAttribute('transform', `rotate(${tilt} 150 120)`);
+                    }
+                    if (chestLed) {
+                        const pulse = 0.4 + Math.sin(time * 4) * 0.3;
+                        chestLed.setAttribute('opacity', pulse);
+                    }
+                } else if (currentState === 'speaking') {
+                    // Boost sensitivity - multiply by 10 instead of 2
+                    const normalizedAmp = Math.min(currentAmplitude * 10, 1);
+
+                    // Beak animation - much more visible
+                    if (beakBottom) {
+                        const beakOpen = 10 + normalizedAmp * 20;
+                        beakBottom.setAttribute('points', `140,145 160,145 150,${145 + beakOpen}`);
+                    }
+
+                    // Head bob - more pronounced
+                    if (head) {
+                        const bob = Math.sin(time * 8) * normalizedAmp * 8;
+                        const tilt = Math.sin(time * 6) * normalizedAmp * 5;
+                        head.setAttribute('transform', `translate(0 ${bob}) rotate(${tilt} 150 120)`);
+                    }
+
+                    // Chest LED intensity - always visible when speaking
+                    if (chestLed) {
+                        chestLed.setAttribute('opacity', 0.8 + normalizedAmp * 0.2);
+                        chestLed.setAttribute('fill', '#FF6B6B'); // Red when speaking
+                    }
+
+                    // Wing gestures - lower threshold
+                    if (normalizedAmp > 0.3) {
+                        const wingMove = Math.sin(time * 10) * 8;
+                        if (leftWing) {
+                            leftWing.setAttribute('transform', `rotate(${-20 + wingMove} 80 240)`);
+                        }
+                        if (rightWing) {
+                            rightWing.setAttribute('transform', `rotate(${20 - wingMove} 220 240)`);
+                        }
+                    }
+                } else {
+                    // Idle/listening state - reset transforms
+                    if (head) {
+                        head.setAttribute('transform', 'translate(0 0) rotate(0 150 120)');
+                    }
+                    if (beakBottom) {
+                        beakBottom.setAttribute('points', '140,145 160,145 150,150');
+                    }
+                    if (chestLed) {
+                        chestLed.setAttribute('opacity', 0.6);
+                        chestLed.setAttribute('fill', '#4A90E2'); // Blue when not speaking
+                    }
+                    if (leftWing) {
+                        leftWing.setAttribute('transform', 'rotate(-20 80 240)');
+                    }
+                    if (rightWing) {
+                        rightWing.setAttribute('transform', 'rotate(20 220 240)');
+                    }
+                }
+            };
+
+            const startBlinkLoop = () => {
+                const scheduleBlink = () => {
+                    const delay = 2000 + Math.random() * 3000;
+                    blinkTimerRef.current = setTimeout(() => {
+                        doBlink();
+                        scheduleBlink();
+                    }, delay);
+                };
+                scheduleBlink();
+            };
+
+            const doBlink = () => {
+                if (!svgRef.current) return;
+
+                const svg = svgRef.current.querySelector('svg');
+                if (!svg) return;
+
+                const leftEye = svg.querySelector('#left-eye');
+                const rightEye = svg.querySelector('#right-eye');
+
+                console.log('Blinking!', {leftEye, rightEye});
+
+                if (leftEye) leftEye.setAttribute('r', '1');
+                if (rightEye) rightEye.setAttribute('r', '1');
+
+                setTimeout(() => {
+                    if (leftEye) leftEye.setAttribute('r', '12');
+                    if (rightEye) rightEye.setAttribute('r', '12');
+                }, 150);
+            };
+
+            return (
+                <div className="owl-container">
+                    <div ref={svgRef}></div>
+                </div>
+            );
+        }
+
+        // Main App Component
+        function App() {
+            // Get URL params for auto-connect
+            const urlParams = new URLSearchParams(window.location.search);
+            const [roomUrl, setRoomUrl] = useState(urlParams.get('url') || localStorage.getItem('roomUrl') || '');
+            const [token, setToken] = useState(urlParams.get('token') || localStorage.getItem('token') || '');
+            const [connected, setConnected] = useState(false);
+            const [state, setState] = useState('idle');
+            const [amplitude, setAmplitude] = useState(0);
+            const [error, setError] = useState('');
+
+            const roomRef = useRef(null);
+            const audioContextRef = useRef(null);
+            const analyserRef = useRef(null);
+            const animationFrameRef = useRef(null);
+
+            const connect = async () => {
+                if (!roomUrl || !token) {
+                    setError('Please enter both room URL and token');
+                    return;
+                }
+
+                try {
+                    setError('');
+
+                    // Save to localStorage for next reload
+                    localStorage.setItem('roomUrl', roomUrl);
+                    localStorage.setItem('token', token);
+
+                    const room = new Room();
+                    roomRef.current = room;
+
+                    // Set up room event handlers
+                    room.on(RoomEvent.TrackSubscribed, handleTrackSubscribed);
+                    room.on(RoomEvent.DataReceived, handleDataReceived);
+                    room.on(RoomEvent.Disconnected, handleDisconnected);
+                    room.on(RoomEvent.ParticipantConnected, (participant) => {
+                        console.log('Participant connected:', participant.identity);
+                    });
+
+                    console.log('Connecting to room:', roomUrl);
+                    await room.connect(roomUrl, token);
+                    console.log('Connected! Room participants:', Array.from(room.remoteParticipants.values()).map(p => p.identity));
+                    setConnected(true);
+                    setState('listening');
+
+                } catch (err) {
+                    setError(`Connection failed: ${err.message}`);
+                    console.error('Connection error:', err);
+                }
+            };
+
+            const disconnect = async () => {
+                if (roomRef.current) {
+                    await roomRef.current.disconnect();
+                    roomRef.current = null;
+                }
+                if (animationFrameRef.current) {
+                    cancelAnimationFrame(animationFrameRef.current);
+                }
+                if (audioContextRef.current) {
+                    audioContextRef.current.close();
+                }
+                setConnected(false);
+                setState('idle');
+                setAmplitude(0);
+            };
+
+            const handleTrackSubscribed = (track, publication, participant) => {
+                console.log('Track subscribed:', {
+                    kind: track.kind,
+                    participant: participant.identity,
+                    source: publication.source
+                });
+
+                if (track.kind === 'audio') {
+                    console.log('Setting up audio analyser for:', participant.identity);
+
+                    // Attach audio to DOM for playback
+                    const audioElement = track.attach();
+                    audioElement.id = `audio-${participant.identity}`;
+                    document.body.appendChild(audioElement);
+                    console.log('Audio element attached:', audioElement.id);
+
+                    setupAudioAnalyser(track.mediaStreamTrack);
+                }
+            };
+
+            const speakingTimeoutRef = useRef(null);
+
+            const handleDataReceived = (payload, participant) => {
+                try {
+                    const data = JSON.parse(new TextDecoder().decode(payload));
+                    console.log('Data received from', participant?.identity, ':', data);
+
+                    if (data.type === 'animation_event') {
+                        console.log('Animation event:', data.event);
+                        if (data.event === 'speaking_start') {
+                            setState('speaking');
+
+                            // Fallback: auto-return to listening after 30 seconds if no stop event
+                            if (speakingTimeoutRef.current) {
+                                clearTimeout(speakingTimeoutRef.current);
+                            }
+                            speakingTimeoutRef.current = setTimeout(() => {
+                                console.log('Speaking timeout - returning to listening');
+                                setState('listening');
+                                setAmplitude(0);
+                            }, 30000);
+                        } else if (data.event === 'speaking_stop') {
+                            if (speakingTimeoutRef.current) {
+                                clearTimeout(speakingTimeoutRef.current);
+                            }
+                            setState('listening');
+                            setAmplitude(0);
+                        } else if (data.event === 'thinking') {
+                            setState('thinking');
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error parsing data:', err);
+                }
+            };
+
+            const handleDisconnected = () => {
+                setConnected(false);
+                setState('idle');
+                setAmplitude(0);
+            };
+
+            const setupAudioAnalyser = (mediaStreamTrack) => {
+                console.log('Setting up audio analyser...');
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                audioContextRef.current = audioContext;
+
+                const analyser = audioContext.createAnalyser();
+                analyser.fftSize = 256;
+                analyserRef.current = analyser;
+
+                const stream = new MediaStream([mediaStreamTrack]);
+                const source = audioContext.createMediaStreamSource(stream);
+                source.connect(analyser);
+
+                console.log('Audio analyser ready, starting amplitude monitoring');
+                startAmplitudeMonitoring();
+            };
+
+            const startAmplitudeMonitoring = () => {
+                const bufferLength = analyserRef.current.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+                let debugCounter = 0;
+
+                const updateAmplitude = () => {
+                    analyserRef.current.getByteFrequencyData(dataArray);
+
+                    let sum = 0;
+                    for (let i = 0; i < bufferLength; i++) {
+                        sum += dataArray[i];
+                    }
+                    const avg = sum / bufferLength / 255;
+
+                    setAmplitude(avg);
+
+                    // Debug logging every 60 frames (~1 second)
+                    debugCounter++;
+                    if (debugCounter % 60 === 0) {
+                        console.log('Amplitude:', avg.toFixed(3), 'Sum:', sum, 'BufferLength:', bufferLength);
+                    }
+
+                    animationFrameRef.current = requestAnimationFrame(updateAmplitude);
+                };
+
+                updateAmplitude();
+            };
+
+            return (
+                <div className="container">
+                    <h1>Voice Agent</h1>
+                    <div className={`status ${state}`}>
+                        Status: {state.toUpperCase()}
+                    </div>
+
+                    <OwlAvatar state={state} amplitude={amplitude} />
+
+                    {!connected ? (
+                        <div className="controls">
+                            <input
+                                type="text"
+                                placeholder="LiveKit Room URL (e.g., wss://...)"
+                                value={roomUrl}
+                                onChange={(e) => setRoomUrl(e.target.value)}
+                            />
+                            <input
+                                type="text"
+                                placeholder="Access Token"
+                                value={token}
+                                onChange={(e) => setToken(e.target.value)}
+                            />
+                            <button onClick={connect}>Connect</button>
+                        </div>
+                    ) : (
+                        <div className="controls">
+                            <button onClick={disconnect}>Disconnect</button>
+                        </div>
+                    )}
+
+                    {error && <div className="error">{error}</div>}
+                </div>
+            );
+        }
+
+        // Render app
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
