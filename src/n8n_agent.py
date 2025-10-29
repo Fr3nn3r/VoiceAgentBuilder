@@ -37,7 +37,8 @@ load_dotenv(override=True)
 
 # ElevenLabs multilingual voice handles all languages automatically
 # River: Neutral, calm, supports en/it/fr/pt/zh
-ELEVENLABS_VOICE_ID = "UJCi4DDncuo0VJDSIegj"
+# ELEVENLABS_VOICE_ID = "UJCi4DDncuo0VJDSIegj" #Canadian French
+ELEVENLABS_VOICE_ID = "dYjOkSQBPiH2igolJfeH"
 
 
 class N8nWebhookLLM(LLM):

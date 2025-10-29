@@ -1,27 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python:*)",
-      "Bash(pip install:*)",
-      "Bash(pip show:*)",
-      "Bash(.venv\\Scripts\\python.exe -m ensurepip:*)",
-      "Bash(.\\.venv\\Scripts\\python.exe -m ensurepip:*)",
-      "Bash(uv pip install:*)",
-      "WebFetch(domain:docs.livekit.io)",
-      "WebSearch",
-      "WebFetch(domain:github.com)",
-      "Bash(uv cache clean:*)",
-      "Read(//c/Users/fbrun/.cache/huggingface/**)",
-      "Bash(timeout 40 uv run:*)",
-      "Bash(uv pip show:*)",
-      "Bash(curl -X GET \"https://api.elevenlabs.io/v1/voices\" -H \"xi-api-key: sk_5454b4b78756fe02edec508721d9c180840ac871af0214f2\")",
-      "Bash(curl -X GET \"https://api.elevenlabs.io/v1/voices/WtA85syCrJwasGeHGH2p\" -H \"xi-api-key: sk_5454b4b78756fe02edec508721d9c180840ac871af0214f2\")",
-      "Bash(claude doctor)",
-      "Bash(lk token create:*)",
-      "Bash(uv run:*)",
-      "Bash(curl -X GET \"https://api.elevenlabs.io/v1/voices\" -H \"xi-api-key: sk_454b4b78756fe02edec508721d9c180840ac871af0214f2\")",
-      "Bash(curl:*)",
-      "Bash(taskkill:*)"
+      "Bash(timeout 15 \".venv\\Scripts\\python.exe\":*)"
     ],
     "deny": [],
     "ask": []
