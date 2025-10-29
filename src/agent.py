@@ -1,6 +1,7 @@
 import logging
 import os
 
+import httpx
 from dotenv import load_dotenv
 from livekit.agents import (
     NOT_GIVEN,
@@ -121,7 +122,12 @@ async def entrypoint(ctx: JobContext):
         "session_id": getattr(ctx, "session_id", "unknown"),
     }
 
-    llm = openai.LLM(model="gpt-4o")
+    # Use gpt-4o-mini for faster responses and lower latency
+    # Increase read timeout to 30s to handle longer prompts and network latency
+    llm = openai.LLM(
+        model="gpt-4o-mini",
+        timeout=httpx.Timeout(connect=15.0, read=30.0, write=5.0, pool=5.0),
+    )
 
     # Set up a voice AI pipeline using OpenAI, ElevenLabs, Deepgram, and the LiveKit turn detector
     session = AgentSession(

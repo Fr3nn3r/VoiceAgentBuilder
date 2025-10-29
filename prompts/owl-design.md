@@ -1,0 +1,1 @@
+1. A (example public/owl-model.jpeg) 2. Energic/Excited 3. Quick wins 4. 1-expressive face 3-performance 2-visual design 4-animations 5-gestures 6-effects 5- Pink dominant color, current size good, looka around, no accessoris, plain background, no sound effect. sounds good

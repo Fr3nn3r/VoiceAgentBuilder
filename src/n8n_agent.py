@@ -28,12 +28,16 @@ from livekit.agents.llm import (
     ChoiceDelta,
     ChatMessage,
 )
-from livekit.plugins import cartesia, deepgram, noise_cancellation, silero
+from livekit.plugins import cartesia, deepgram, noise_cancellation, silero, elevenlabs
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
 logger = logging.getLogger("n8n_agent")
 
 load_dotenv(override=True)
+
+# ElevenLabs multilingual voice handles all languages automatically
+# River: Neutral, calm, supports en/it/fr/pt/zh
+ELEVENLABS_VOICE_ID = "SAz9YHcvj6GT2YYXdXww"
 
 
 class N8nWebhookLLM(LLM):
@@ -369,10 +373,15 @@ async def entrypoint(ctx: JobContext):
     # Set up voice AI pipeline with n8n webhook as the LLM
     session = AgentSession(
         llm=n8n_llm,
-        stt=deepgram.STT(model="nova-3", language="multi"),
+        stt=deepgram.STT(model="nova-3", language="fr"),
         # tts=cartesia.TTS(voice="6f84f4b8-58a2-430c-8c79-688dad597532"),
-        tts=cartesia.TTS(voice="32b3f3c5-7171-46aa-abe7-b598964aa793"),
+        # tts=cartesia.TTS(voice="32b3f3c5-7171-46aa-abe7-b598964aa793"),
         # tts=cartesia.TTS(voice="a8a1eb38-5f15-4c1d-8722-7ac0f329727d"),
+        # tts=cartesia.TTS(voice="65b25c5d-ff07-4687-a04c-da2f43ef6fa9"),  # French voice
+        tts=elevenlabs.TTS(
+            voice_id=ELEVENLABS_VOICE_ID,
+            model="eleven_multilingual_v2",
+        ),
         turn_detection=MultilingualModel(),
         vad=ctx.proc.userdata["vad"],
         preemptive_generation=True,

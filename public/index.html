@@ -78,6 +78,19 @@
             background: #ccc;
             cursor: not-allowed;
         }
+        button.mute-button {
+            background: #E74C3C;
+            margin-top: 10px;
+        }
+        button.mute-button:hover {
+            background: #c0392b;
+        }
+        button.mute-button.muted {
+            background: #95a5a6;
+        }
+        button.mute-button.muted:hover {
+            background: #7f8c8d;
+        }
         .error {
             color: #E74C3C;
             margin-top: 15px;
@@ -294,6 +307,7 @@
             const [state, setState] = useState('idle');
             const [amplitude, setAmplitude] = useState(0);
             const [error, setError] = useState('');
+            const [isMuted, setIsMuted] = useState(true);
 
             const roomRef = useRef(null);
             const audioContextRef = useRef(null);
@@ -365,8 +379,9 @@
                     // Attach audio to DOM for playback
                     const audioElement = track.attach();
                     audioElement.id = `audio-${participant.identity}`;
+                    audioElement.muted = isMuted; // Set initial mute state
                     document.body.appendChild(audioElement);
-                    console.log('Audio element attached:', audioElement.id);
+                    console.log('Audio element attached:', audioElement.id, 'muted:', audioElement.muted);
 
                     setupAudioAnalyser(track.mediaStreamTrack);
                 }
@@ -459,6 +474,17 @@
                 updateAmplitude();
             };
 
+            const toggleMute = () => {
+                const newMutedState = !isMuted;
+                setIsMuted(newMutedState);
+
+                // Update all audio elements
+                document.querySelectorAll('audio').forEach(audioEl => {
+                    audioEl.muted = newMutedState;
+                    console.log('Audio element', audioEl.id, 'muted:', newMutedState);
+                });
+            };
+
             return (
                 <div className="container">
                     <h1>Voice Agent</h1>
@@ -487,6 +513,12 @@
                     ) : (
                         <div className="controls">
                             <button onClick={disconnect}>Disconnect</button>
+                            <button
+                                className={`mute-button ${isMuted ? 'muted' : ''}`}
+                                onClick={toggleMute}
+                            >
+                                {isMuted ? '🔇 Unmute' : '🔊 Mute'}
+                            </button>
                         </div>
                     )}
 
