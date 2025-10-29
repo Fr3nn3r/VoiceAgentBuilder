@@ -37,7 +37,7 @@ load_dotenv(override=True)
 
 # ElevenLabs multilingual voice handles all languages automatically
 # River: Neutral, calm, supports en/it/fr/pt/zh
-ELEVENLABS_VOICE_ID = "SAz9YHcvj6GT2YYXdXww"
+ELEVENLABS_VOICE_ID = "UJCi4DDncuo0VJDSIegj"
 
 
 class N8nWebhookLLM(LLM):
@@ -356,13 +356,25 @@ async def entrypoint(ctx: JobContext):
     # Get n8n configuration from environment
     webhook_url = os.getenv("N8N_WEBHOOK_URL")
     webhook_token = os.getenv("N8N_WEBHOOK_TOKEN", "")  # Optional for testing
+    elevenlabs_api_key = os.getenv("ELEVENLABS_API_KEY") or os.getenv("ELEVEN_API_KEY")
 
     if not webhook_url:
         logger.error("N8N_WEBHOOK_URL must be set")
         raise ValueError("Missing n8n webhook URL")
 
+    if not elevenlabs_api_key:
+        logger.warning("ELEVENLABS_API_KEY not found - will use fallback TTS")
+        logger.info(
+            "To use ElevenLabs TTS, set ELEVENLABS_API_KEY in your environment or .env file"
+        )
+
     logger.info(f"[N8N Agent] Webhook URL: {webhook_url}")
     logger.info(f"[N8N Agent] Token configured: {'Yes' if webhook_token else 'No'}")
+    logger.info(
+        f"[N8N Agent] ElevenLabs API key configured: {'Yes' if elevenlabs_api_key else 'No'}"
+    )
+    logger.info(f"[N8N Agent] Using voice ID: {ELEVENLABS_VOICE_ID}")
+    logger.info(f"[N8N Agent] Using model: eleven_flash_v2_5")
 
     # Create custom n8n LLM
     n8n_llm = N8nWebhookLLM(
@@ -370,18 +382,33 @@ async def entrypoint(ctx: JobContext):
     )
     logger.info("[N8N Agent] Created N8nWebhookLLM instance")
 
+    # Set up TTS with fallback options
+    if elevenlabs_api_key:
+        try:
+            # Try ElevenLabs first
+            tts = elevenlabs.TTS(
+                voice_id=ELEVENLABS_VOICE_ID,
+                model="eleven_flash_v2_5",
+                api_key=elevenlabs_api_key,
+            )
+            logger.info("[N8N Agent] Using ElevenLabs TTS")
+        except Exception as e:
+            logger.warning(f"[N8N Agent] ElevenLabs TTS failed to initialize: {e}")
+            logger.info("[N8N Agent] Falling back to Cartesia TTS")
+            # Fallback to Cartesia TTS
+            tts = cartesia.TTS(
+                voice="65b25c5d-ff07-4687-a04c-da2f43ef6fa9"
+            )  # French voice
+    else:
+        logger.info("[N8N Agent] No ElevenLabs API key - using Cartesia TTS")
+        # Use Cartesia TTS directly
+        tts = cartesia.TTS(voice="65b25c5d-ff07-4687-a04c-da2f43ef6fa9")  # French voice
+
     # Set up voice AI pipeline with n8n webhook as the LLM
     session = AgentSession(
         llm=n8n_llm,
         stt=deepgram.STT(model="nova-3", language="fr"),
-        # tts=cartesia.TTS(voice="6f84f4b8-58a2-430c-8c79-688dad597532"),
-        # tts=cartesia.TTS(voice="32b3f3c5-7171-46aa-abe7-b598964aa793"),
-        # tts=cartesia.TTS(voice="a8a1eb38-5f15-4c1d-8722-7ac0f329727d"),
-        # tts=cartesia.TTS(voice="65b25c5d-ff07-4687-a04c-da2f43ef6fa9"),  # French voice
-        tts=elevenlabs.TTS(
-            voice_id=ELEVENLABS_VOICE_ID,
-            model="eleven_multilingual_v2",
-        ),
+        tts=tts,
         turn_detection=MultilingualModel(),
         vad=ctx.proc.userdata["vad"],
         preemptive_generation=True,

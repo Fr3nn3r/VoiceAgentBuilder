@@ -19,7 +19,9 @@
       "Bash(claude doctor)",
       "Bash(lk token create:*)",
       "Bash(uv run:*)",
-      "Bash(curl -X GET \"https://api.elevenlabs.io/v1/voices\" -H \"xi-api-key: sk_454b4b78756fe02edec508721d9c180840ac871af0214f2\")"
+      "Bash(curl -X GET \"https://api.elevenlabs.io/v1/voices\" -H \"xi-api-key: sk_454b4b78756fe02edec508721d9c180840ac871af0214f2\")",
+      "Bash(curl:*)",
+      "Bash(taskkill:*)"
     ],
     "deny": [],
     "ask": []
