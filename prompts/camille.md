@@ -79,6 +79,8 @@ Offer SMS confirmation if patient wants.
 - Call IMMEDIATELY after booking
 - Log all collected information
 
+**Note:** When the call ends (user disconnects), the system automatically saves the conversation transcript and audio recording to the backend.
+
 ---
 
 ## Rules

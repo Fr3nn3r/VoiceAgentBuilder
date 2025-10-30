@@ -1,7 +1,16 @@
 {
   "permissions": {
     "allow": [
-      "Bash(\".venv\\Scripts\\python.exe\" -c \"from livekit.plugins.openai.realtime.realtime_model import TurnDetection; td = TurnDetection(type=''server_vad'', threshold=0.5, prefix_padding_ms=300, silence_duration_ms=500, create_response=True); print(td.model_dump())\")"
+      "Bash(cat:*)",
+      "Bash(mkdir:*)",
+      "Bash(python scripts/test_persistence.py:*)",
+      "Bash(python -c:*)",
+      "Bash(pip show:*)",
+      "Bash(python src/medical_agent.py:*)",
+      "Bash(pip install:*)",
+      "Bash(timeout /t 15)",
+      "Bash(taskkill:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []
