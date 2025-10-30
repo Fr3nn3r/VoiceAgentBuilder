@@ -12,7 +12,6 @@ from typing import Any, Dict, Optional
 
 import aiohttp
 from dotenv import load_dotenv
-from livekit import rtc
 from livekit.agents import (
     Agent,
     AgentFalseInterruptionEvent,
@@ -383,6 +382,7 @@ async def entrypoint(ctx: JobContext):
                 threshold=0.5,
                 prefix_padding_ms=300,
                 silence_duration_ms=500,
+                create_response=True,  # Must be explicitly set to avoid null error
             ),
         ),
         vad=ctx.proc.userdata["vad"],
@@ -435,46 +435,6 @@ async def entrypoint(ctx: JobContext):
     # Create agent with system prompt and tools
     agent = Agent(instructions=system_prompt, tools=scheduling_tools)
 
-    # Greeting logic: Register BEFORE starting session and connecting
-    # This ensures the handler is ready when participant_connected fires
-    greeting_triggered = False
-
-    @ctx.room.on("participant_connected")
-    def on_participant_connected(participant: rtc.RemoteParticipant):
-        nonlocal greeting_triggered
-
-        async def deliver_greeting():
-            nonlocal greeting_triggered
-
-            # Only greet once and only for non-agent participants
-            if greeting_triggered:
-                return
-
-            if participant.kind == rtc.ParticipantKind.PARTICIPANT_KIND_STANDARD:
-                logger.info(
-                    f"[Greeting] User joined: {participant.identity}, triggering greeting"
-                )
-                greeting_triggered = True
-
-                # Small delay to ensure audio track is ready
-                await asyncio.sleep(0.5)
-
-                # Part 1: Fast, predictable intro (direct TTS)
-                greeting_intro = "Bonjour, cabinet du docteur Fillion, Camille à l'appareil."
-                await session.say(greeting_intro, allow_interruptions=True)
-                logger.info("[Greeting] Intro delivered via session.say()")
-
-                # Part 2: Natural follow-up (LLM generates)
-                await session.generate_reply(
-                    instructions="Ask the caller how you can help them, in French, naturally and briefly."
-                )
-                logger.info("[Greeting] LLM follow-up initiated")
-
-        # Create task from synchronous callback
-        asyncio.create_task(deliver_greeting())
-
-    logger.info("[Medical Agent] Greeting handler registered")
-
     # Start session
     await session.start(
         agent=agent,
@@ -486,6 +446,24 @@ async def entrypoint(ctx: JobContext):
 
     # Connect to room
     await ctx.connect()
+
+    logger.info("[Medical Agent] Agent connected and ready")
+
+    # Deliver greeting immediately after connection
+    # This works for both console mode and room mode
+    await asyncio.sleep(1.0)  # Small delay to ensure everything is ready
+
+    logger.info("[Greeting] Delivering automatic greeting...")
+
+    # For OpenAI Realtime API, use generate_reply (it has built-in voice)
+    # The greeting is in two parts per Option B1:
+    # Part 1: Office identification + Part 2: How can I help
+    greeting_instruction = """Greet the caller with exactly this:
+    "Bonjour, cabinet du docteur Fillion, Camille à l'appareil."
+    Then ask how you can help them in French, naturally and briefly."""
+
+    await session.generate_reply(instructions=greeting_instruction)
+    logger.info("[Greeting] Greeting delivered via Realtime API")
 
     logger.info("[Medical Agent] Agent ready and listening")
 
