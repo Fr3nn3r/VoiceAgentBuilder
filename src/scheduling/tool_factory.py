@@ -12,9 +12,9 @@ from livekit.agents import AgentSession, function_tool
 from persistence.conversation_recorder import ConversationRecorder
 
 from .tool_handlers import (
-    BookAppointmentHandler,
-    CheckAvailabilityHandler,
-    LogAppointmentHandler,
+    create_book_appointment_handler,
+    create_check_availability_handler,
+    create_log_appointment_handler,
 )
 from .tool_schemas import (
     BOOK_APPOINTMENT_SCHEMA,
@@ -49,17 +49,15 @@ def create_scheduling_tools(
         >>> len(tools)
         3
     """
-    # Create handler instances
-    check_availability_handler = CheckAvailabilityHandler(tool_handler)
-    book_appointment_handler = BookAppointmentHandler(tool_handler)
-    log_appointment_handler = LogAppointmentHandler(tool_handler, recorder)
+    # Create handler functions using factory pattern
+    check_availability_fn = create_check_availability_handler(tool_handler)
+    book_appointment_fn = create_book_appointment_handler(tool_handler)
+    log_appointment_fn = create_log_appointment_handler(tool_handler, recorder)
 
     # Assemble FunctionTool objects with schemas
     return [
-        function_tool(
-            check_availability_handler, raw_schema=CHECK_AVAILABILITY_SCHEMA
-        ),
-        function_tool(book_appointment_handler, raw_schema=BOOK_APPOINTMENT_SCHEMA),
-        function_tool(log_appointment_handler, raw_schema=LOG_APPOINTMENT_SCHEMA),
-        # function_tool(close_call_handler, raw_schema=CLOSE_CALL_SCHEMA),  # DISABLED
+        function_tool(check_availability_fn, raw_schema=CHECK_AVAILABILITY_SCHEMA),
+        function_tool(book_appointment_fn, raw_schema=BOOK_APPOINTMENT_SCHEMA),
+        function_tool(log_appointment_fn, raw_schema=LOG_APPOINTMENT_SCHEMA),
+        # function_tool(close_call_fn, raw_schema=CLOSE_CALL_SCHEMA),  # DISABLED
     ]

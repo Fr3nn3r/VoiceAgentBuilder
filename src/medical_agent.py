@@ -11,12 +11,10 @@ import os
 import signal
 import sys
 from datetime import datetime, timezone
-from typing import Any, Dict
 
 from dotenv import load_dotenv
 from livekit.agents import (
     Agent,
-    AgentFalseInterruptionEvent,
     AgentSession,
     JobContext,
     JobProcess,
@@ -30,6 +28,11 @@ from livekit import rtc
 from livekit.plugins import noise_cancellation, openai, silero
 from livekit.plugins.openai.realtime.realtime_model import TurnDetection
 
+from conversation import (
+    AgentResponseHandler,
+    FalseInterruptionHandler,
+    UserTranscriptionHandler,
+)
 from persistence import ConversationData, create_persistence
 from persistence.conversation_recorder import ConversationRecorder
 from persistence.egress_recording import create_egress_recorder_from_env
@@ -138,104 +141,14 @@ async def entrypoint(ctx: JobContext):
     )
     logger.info(f"[Config] Created {len(scheduling_tools)} scheduling tools")
 
-    # User speech monitoring: capture transcript + emergency detection
-    @session.on("user_input_transcribed")
-    def on_user_transcribed(ev: Any):
-        """Capture user speech transcript and detect emergency keywords"""
+    # Register conversation event handlers
+    user_handler = UserTranscriptionHandler(recorder)
+    agent_handler = AgentResponseHandler(recorder)
+    interruption_handler = FalseInterruptionHandler(session)
 
-        async def handle_speech():
-            # Extract transcript text from event
-            text = None
-            if hasattr(ev, "text") and ev.text:
-                text = ev.text
-            elif hasattr(ev, "transcript") and ev.transcript:
-                text = ev.transcript
-            elif hasattr(ev, "alternatives") and ev.alternatives:
-                # Try to get text from first alternative
-                text = (
-                    ev.alternatives[0].text
-                    if hasattr(ev.alternatives[0], "text")
-                    else None
-                )
-
-            if text:
-                # Capture in transcript
-                recorder.add_user_message(text)
-
-        # Create task from synchronous callback
-        asyncio.create_task(handle_speech())
-
-    # Capture agent responses via conversation_item_added event
-    @session.on("conversation_item_added")
-    def on_conversation_item(ev: Any):
-        """Capture agent responses when items are added to conversation"""
-        logger.info("[Event] conversation_item_added event fired")
-        logger.debug(f"[Event] Event object: {ev}")
-
-        # Check if this is an agent message
-        if hasattr(ev, "item"):
-            item = ev.item
-            item_role = getattr(item, "role", "unknown")
-            logger.info(f"[Event] Item role: {item_role}")
-            logger.debug(
-                f"[Event] Item attributes: {[attr for attr in dir(item) if not attr.startswith('_')]}"
-            )
-
-            # Try to extract text from various possible structures
-            text = None
-            if hasattr(item, "role") and item.role == "assistant":
-                if hasattr(item, "text") and item.text:
-                    text = item.text
-                    logger.debug(f"[Event] Found text via item.text")
-                elif hasattr(item, "content") and item.content:
-                    if isinstance(item.content, str):
-                        text = item.content
-                        logger.debug(f"[Event] Found text via item.content (str)")
-                    elif isinstance(item.content, list) and len(item.content) > 0:
-                        # Handle list of content items (can be strings or objects)
-                        first_item = item.content[0]
-                        if isinstance(first_item, str):
-                            # List contains strings directly
-                            text = first_item
-                            logger.debug(
-                                f"[Event] Found text via item.content[0] (str)"
-                            )
-                        elif hasattr(first_item, "text"):
-                            # List contains objects with .text attribute
-                            text = first_item.text
-                            logger.debug(f"[Event] Found text via item.content[0].text")
-                    elif hasattr(item.content, "text"):
-                        text = item.content.text
-                        logger.debug(f"[Event] Found text via item.content.text")
-
-                if text:
-                    logger.info(
-                        f"[Event] Captured assistant message ({len(text)} chars)"
-                    )
-                    recorder.add_agent_message(text)
-                else:
-                    logger.warning(
-                        f"[Event] Assistant item found but no text extracted"
-                    )
-                    logger.warning(
-                        f"[Event] Item content type: {type(getattr(item, 'content', None))}"
-                    )
-                    logger.warning(
-                        f"[Event] Item content value: {getattr(item, 'content', 'N/A')}"
-                    )
-        else:
-            logger.warning(
-                f"[Event] conversation_item_added fired but no 'item' attribute found"
-            )
-            logger.debug(
-                f"[Event] Available attributes: {[attr for attr in dir(ev) if not attr.startswith('_')]}"
-            )
-
-    # Handle false positive interruptions
-    @session.on("agent_false_interruption")
-    def on_false_interruption(ev: AgentFalseInterruptionEvent):
-        logger.info("[Agent] False positive interruption detected, resuming")
-        session.generate_reply()
+    session.on("user_input_transcribed")(user_handler)
+    session.on("conversation_item_added")(agent_handler)
+    session.on("agent_false_interruption")(interruption_handler)
 
     # Metrics collection
     usage_collector = metrics.UsageCollector()
