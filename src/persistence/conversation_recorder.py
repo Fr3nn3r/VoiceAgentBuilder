@@ -99,14 +99,13 @@ class ConversationRecorder:
         Get complete conversation transcript as formatted string.
 
         Format:
-            [2025-10-30T14:23:45] USER: Bonjour...
-            [2025-10-30T14:23:47] AGENT: Bonjour, cabinet du docteur Fillion...
+            USER: Bonjour...
+            AGENT: Bonjour, cabinet du docteur Fillion...
         """
         lines = []
         for turn in self.turns:
-            timestamp = turn.timestamp[:19]  # Trim microseconds
             role = turn.role.upper()
-            lines.append(f"[{timestamp}] {role}: {turn.text}")
+            lines.append(f"{role}: {turn.text}")
 
         return "\n".join(lines)
 

@@ -16,7 +16,7 @@ class EgressRecorder:
     """
     Manages LiveKit Egress room composite recordings.
 
-    Records mixed room audio server-side and uploads to S3-compatible storage.
+    Records mixed room audio server-side and uploads to Azure Blob Storage.
     """
 
     def __init__(
@@ -24,41 +24,35 @@ class EgressRecorder:
         livekit_url: str,
         api_key: str,
         api_secret: str,
-        s3_access_key: str,
-        s3_secret_key: str,
-        s3_endpoint: str,
-        s3_bucket: str,
-        s3_region: str = "auto",
+        azure_account_name: str,
+        azure_account_key: str,
+        azure_container_name: str,
     ):
         """
-        Initialize Egress recorder with LiveKit and S3 credentials.
+        Initialize Egress recorder with LiveKit and Azure credentials.
 
         Args:
             livekit_url: LiveKit server URL (e.g., wss://your-project.livekit.cloud)
             api_key: LiveKit API key
             api_secret: LiveKit API secret
-            s3_access_key: S3/R2 access key
-            s3_secret_key: S3/R2 secret key
-            s3_endpoint: S3/R2 endpoint URL
-            s3_bucket: S3/R2 bucket name
-            s3_region: S3/R2 region (default: auto for Cloudflare R2)
+            azure_account_name: Azure storage account name
+            azure_account_key: Azure storage account key
+            azure_container_name: Azure container name
         """
         self.livekit_url = livekit_url
         self.api_key = api_key
         self.api_secret = api_secret
 
-        self.s3_access_key = s3_access_key
-        self.s3_secret_key = s3_secret_key
-        self.s3_endpoint = s3_endpoint
-        self.s3_bucket = s3_bucket
-        self.s3_region = s3_region
+        self.azure_account_name = azure_account_name
+        self.azure_account_key = azure_account_key
+        self.azure_container_name = azure_container_name
 
         # Initialize LiveKit API client (SDK v1.0+)
         self.lkapi = api.LiveKitAPI(livekit_url, api_key, api_secret)
         self.egress_service = self.lkapi.egress
 
         logger.info(
-            f"[Egress] Initialized (bucket={s3_bucket}, endpoint={s3_endpoint})"
+            f"[Egress] Initialized (account={azure_account_name}, container={azure_container_name})"
         )
 
     async def start_room_recording(
@@ -75,14 +69,11 @@ class EgressRecorder:
             Egress ID if successful, None otherwise
         """
         try:
-            # Configure S3 upload (force path-style for Azure Blob Storage compatibility)
-            s3_upload = api.S3Upload(
-                access_key=self.s3_access_key,
-                secret=self.s3_secret_key,
-                region=self.s3_region,
-                endpoint=self.s3_endpoint,
-                bucket=self.s3_bucket,
-                force_path_style=True,  # Required for Azure Blob Storage
+            # Configure Azure Blob Storage upload
+            azure_upload = api.AzureBlobUpload(
+                account_name=self.azure_account_name,
+                account_key=self.azure_account_key,
+                container_name=self.azure_container_name,
             )
 
             # Configure audio-only MP4 recording (MP3 not supported in SDK v1.0+)
@@ -93,7 +84,7 @@ class EgressRecorder:
                     api.EncodedFileOutput(
                         file_type=api.EncodedFileType.MP4,
                         filepath=f"recordings/{room_id}.mp4",
-                        s3=s3_upload,
+                        azure=azure_upload,
                     )
                 ],
             )
@@ -182,11 +173,9 @@ def create_egress_recorder_from_env() -> Optional[EgressRecorder]:
     - LIVEKIT_URL
     - LIVEKIT_API_KEY
     - LIVEKIT_API_SECRET
-    - S3_ACCESS_KEY (or R2_ACCESS_KEY)
-    - S3_SECRET_KEY (or R2_SECRET_KEY)
-    - S3_ENDPOINT (or R2_ENDPOINT)
-    - S3_BUCKET (or R2_BUCKET)
-    - S3_REGION (optional, default: auto)
+    - AZURE_STORAGE_ACCOUNT_NAME
+    - AZURE_STORAGE_ACCOUNT_KEY
+    - AZURE_STORAGE_CONTAINER_NAME
 
     Returns:
         EgressRecorder instance, or None if env vars missing
@@ -195,12 +184,9 @@ def create_egress_recorder_from_env() -> Optional[EgressRecorder]:
     api_key = os.getenv("LIVEKIT_API_KEY")
     api_secret = os.getenv("LIVEKIT_API_SECRET")
 
-    # Support both S3_ and R2_ prefixes
-    s3_access_key = os.getenv("S3_ACCESS_KEY") or os.getenv("R2_ACCESS_KEY")
-    s3_secret_key = os.getenv("S3_SECRET_KEY") or os.getenv("R2_SECRET_KEY")
-    s3_endpoint = os.getenv("S3_ENDPOINT") or os.getenv("R2_ENDPOINT")
-    s3_bucket = os.getenv("S3_BUCKET") or os.getenv("R2_BUCKET")
-    s3_region = os.getenv("S3_REGION", "auto")
+    azure_account_name = os.getenv("AZURE_STORAGE_ACCOUNT_NAME")
+    azure_account_key = os.getenv("AZURE_STORAGE_ACCOUNT_KEY")
+    azure_container_name = os.getenv("AZURE_STORAGE_CONTAINER_NAME")
 
     # Check required vars
     missing = []
@@ -210,14 +196,12 @@ def create_egress_recorder_from_env() -> Optional[EgressRecorder]:
         missing.append("LIVEKIT_API_KEY")
     if not api_secret:
         missing.append("LIVEKIT_API_SECRET")
-    if not s3_access_key:
-        missing.append("S3_ACCESS_KEY or R2_ACCESS_KEY")
-    if not s3_secret_key:
-        missing.append("S3_SECRET_KEY or R2_SECRET_KEY")
-    if not s3_endpoint:
-        missing.append("S3_ENDPOINT or R2_ENDPOINT")
-    if not s3_bucket:
-        missing.append("S3_BUCKET or R2_BUCKET")
+    if not azure_account_name:
+        missing.append("AZURE_STORAGE_ACCOUNT_NAME")
+    if not azure_account_key:
+        missing.append("AZURE_STORAGE_ACCOUNT_KEY")
+    if not azure_container_name:
+        missing.append("AZURE_STORAGE_CONTAINER_NAME")
 
     if missing:
         logger.warning(
@@ -230,9 +214,7 @@ def create_egress_recorder_from_env() -> Optional[EgressRecorder]:
         livekit_url=livekit_url,
         api_key=api_key,
         api_secret=api_secret,
-        s3_access_key=s3_access_key,
-        s3_secret_key=s3_secret_key,
-        s3_endpoint=s3_endpoint,
-        s3_bucket=s3_bucket,
-        s3_region=s3_region,
+        azure_account_name=azure_account_name,
+        azure_account_key=azure_account_key,
+        azure_container_name=azure_container_name,
     )

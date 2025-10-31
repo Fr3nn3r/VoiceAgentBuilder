@@ -574,24 +574,18 @@ async def entrypoint(ctx: JobContext):
         # Build recording URL from Egress (if recording was started)
         recording_url = None
         if egress_id:
-            # Recording URL will be: https://<endpoint>/<bucket>/recordings/<job_id>.mp4
+            # Recording URL will be: https://<account>.blob.core.windows.net/<container>/recordings/<job_id>.mp4
             # This URL is publicly accessible after Egress completes
-            s3_endpoint = os.getenv("S3_ENDPOINT") or os.getenv("R2_ENDPOINT")
-            s3_bucket = os.getenv("S3_BUCKET") or os.getenv("R2_BUCKET")
-            if s3_endpoint and s3_bucket:
-                # Remove https:// and trailing slash
-                endpoint_clean = (
-                    s3_endpoint.replace("https://", "")
-                    .replace("http://", "")
-                    .rstrip("/")
-                )
+            azure_account = os.getenv("AZURE_STORAGE_ACCOUNT_NAME")
+            azure_container = os.getenv("AZURE_STORAGE_CONTAINER_NAME")
+            if azure_account and azure_container:
                 recording_url = (
-                    f"https://{endpoint_clean}/{s3_bucket}/recordings/{ctx.job.id}.mp4"
+                    f"https://{azure_account}.blob.core.windows.net/{azure_container}/recordings/{ctx.job.id}.mp4"
                 )
                 logger.info(f"[Egress] Recording URL: {recording_url}")
             else:
                 logger.warning(
-                    "[Egress] Cannot build recording URL - missing S3 env vars"
+                    "[Egress] Cannot build recording URL - missing Azure env vars"
                 )
 
         # No audio_data needed - Egress handles the recording
@@ -662,6 +656,42 @@ async def entrypoint(ctx: JobContext):
                 logger.warning("[Egress] Failed to start recording")
         except Exception as e:
             logger.error(f"[Egress] Error starting recording: {e}")
+
+    # Detect when user hangs up and stop recording immediately
+    @ctx.room.on("participant_disconnected")
+    def on_participant_disconnected(participant: rtc.RemoteParticipant):
+        """
+        Handle participant disconnection to stop recording immediately.
+        This prevents 20+ seconds of silence at the end of recordings.
+        """
+        logger.info(
+            f"[Room] Participant disconnected: {participant.identity} (sid={participant.sid})"
+        )
+
+        # Check if this is a remote participant (not the agent itself)
+        # The agent's own disconnect will be handled by shutdown callbacks
+        async def handle_user_hangup():
+            try:
+                # Stop egress recording immediately to prevent silence
+                if egress_id and egress_recorder:
+                    logger.info(
+                        f"[Egress] User hung up - stopping recording {egress_id}"
+                    )
+                    stop_success = await egress_recorder.stop_recording(egress_id)
+                    if stop_success:
+                        logger.info("[Egress] Recording stopped successfully")
+                    else:
+                        logger.warning("[Egress] Failed to stop recording")
+
+                # Shutdown agent gracefully (triggers shutdown callbacks for cleanup)
+                logger.info("[Room] Initiating agent shutdown after user disconnect")
+                ctx.shutdown(reason="User disconnected")
+
+            except Exception as e:
+                logger.error(f"[Room] Error handling user hangup: {e}")
+
+        # Run async cleanup task
+        asyncio.create_task(handle_user_hangup())
 
     # Deliver greeting immediately after connection
     # This works for both console mode and room mode
