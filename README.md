@@ -18,6 +18,33 @@ The starter project includes:
 
 This starter app is compatible with any [custom web/mobile frontend](https://docs.livekit.io/agents/start/frontend/) or [SIP-based telephony](https://docs.livekit.io/agents/start/telephony/).
 
+## Additional Agents
+
+This repository includes specialized production-ready agents:
+
+### Medical Agent (Camille)
+French-speaking medical appointment scheduler for Dr. Fillion's office.
+
+**Features:**
+- OpenAI Realtime API for natural French conversation
+- Google Calendar integration via N8N webhooks
+- Patient information collection and Airtable persistence
+- Call recording to Azure Blob Storage via LiveKit Egress
+- Modular architecture following SOLID principles
+
+**Modules:**
+- `src/scheduling/` - Reusable appointment scheduling tools
+- `src/conversation/` - Transcript capture and event handling
+- `src/prompts/` - Template-based prompt management
+- `src/persistence/` - N8N and Airtable integration
+
+**Run the medical agent:**
+```console
+uv run python src/medical_agent.py console
+```
+
+See [REFACTORING.md](./REFACTORING.md) for architecture details and [PROJECT_CONTEXT.md](./PROJECT_CONTEXT.md) for full documentation.
+
 ## Dev Setup
 
 Clone the repository and install dependencies to a virtual environment:
@@ -91,6 +118,23 @@ This project includes a complete suite of evals, based on the LiveKit Agents [te
 ```console
 uv run pytest
 ```
+
+### Medical Agent Tests
+The medical agent includes unit tests for all refactored modules:
+
+```console
+# Run all tests
+uv run pytest tests/unit/
+
+# Run specific module tests
+uv run pytest tests/unit/test_webhook_client.py
+uv run pytest tests/unit/test_prompt_loader.py
+```
+
+**Test Coverage:**
+- Webhook client: 7 tests (HTTP mocking, error handling)
+- Prompt loader: 5 tests (file I/O, template substitution)
+- All modules use mocked dependencies for fast, isolated testing
 
 ## Using this template repo for your own project
 

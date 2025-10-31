@@ -7,10 +7,13 @@ Handlers are classes to enable testing and reusability.
 
 import asyncio
 import logging
+import sys
+from pathlib import Path
 from typing import Any
 
 from livekit.agents import AgentFalseInterruptionEvent, AgentSession
 
+sys.path.append(str(Path(__file__).parent.parent))
 from persistence.conversation_recorder import ConversationRecorder
 
 from .message_extractor import extract_agent_text, extract_user_text

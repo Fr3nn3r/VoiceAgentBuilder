@@ -23,21 +23,49 @@ This is a **Voice Agent** project built with **LiveKit Agents for Python** - a c
 
 ```
 voice-agent/
-├── src/                    # Main source code
-│   ├── agent.py           # Primary voice agent implementation
-│   ├── agent_mcp.py       # MCP (Model Context Protocol) integration
-│   ├── hotel_agent.py     # Specialized hotel agent
-│   └── n8n_agent.py       # N8N workflow integration agent
-├── tests/                 # Test suite
-│   ├── unit/              # Unit tests
-│   └── integration/       # Integration tests
-├── prompts/               # AI agent personality definitions
-│   ├── n8n-agent.md       # N8N agent prompt
-│   └── shushu.md          # Shushu personality (cynical owl character)
-├── docs/                  # Documentation
-│   ├── n8n-agent-setup.md # N8N setup guide
-│   └── observability-setup.md # Monitoring setup
-└── scripts/               # Utility scripts
+├── src/                           # Main source code
+│   ├── agent.py                   # Primary voice agent implementation
+│   ├── agent_mcp.py              # MCP (Model Context Protocol) integration
+│   ├── hotel_agent.py            # Specialized hotel agent
+│   ├── n8n_agent.py              # N8N workflow integration agent
+│   ├── medical_agent.py          # Medical appointment scheduling agent
+│   │
+│   ├── scheduling/               # Scheduling module (reusable)
+│   │   ├── webhook_client.py    # HTTP client for N8N webhooks
+│   │   ├── tool_schemas.py      # OpenAI function tool schemas
+│   │   ├── tool_handlers.py     # Tool business logic
+│   │   └── tool_factory.py      # Tool assembly
+│   │
+│   ├── conversation/             # Conversation handling (reusable)
+│   │   ├── event_handlers.py    # Transcript capture handlers
+│   │   └── message_extractor.py # Text extraction from events
+│   │
+│   ├── prompts/                  # Prompt management (reusable)
+│   │   └── prompt_loader.py     # Template loading & substitution
+│   │
+│   └── persistence/              # Data persistence layer
+│       ├── interface.py          # Abstract persistence interface
+│       ├── n8n_persistence.py   # N8N webhook persistence
+│       ├── conversation_recorder.py  # Real-time transcript recording
+│       └── egress_recording.py  # LiveKit Egress audio recording
+│
+├── tests/                        # Test suite
+│   ├── unit/                     # Unit tests
+│   │   ├── test_webhook_client.py
+│   │   ├── test_prompt_loader.py
+│   │   └── ...
+│   └── integration/              # Integration tests
+│
+├── prompts/                      # AI agent personality definitions
+│   ├── camille.md               # Medical agent (French)
+│   ├── n8n-agent.md             # N8N agent prompt
+│   └── shushu.md                # Shushu personality (cynical owl)
+│
+├── docs/                         # Documentation
+│   ├── n8n-agent-setup.md       # N8N setup guide
+│   └── observability-setup.md   # Monitoring setup
+│
+└── scripts/                      # Utility scripts
 ```
 
 ## Key Features
@@ -49,6 +77,13 @@ voice-agent/
 - **Noise cancellation** for improved audio quality
 
 ### 2. Agent Personalities
+- **Camille**: Professional medical office assistant (French)
+  - Medical appointment scheduling for Dr. Fillion's office
+  - Natural French conversation
+  - Patient information collection
+  - Integration with Google Calendar via N8N
+  - Call recording and persistence to Airtable
+
 - **Shushu**: A cynical, confident owl character created by Fred Brunner
   - Short, direct communication style
   - Sarcastic and humorous
@@ -59,6 +94,8 @@ voice-agent/
 - **N8N Workflow Integration**: Send data to N8N webhooks for processing
 - **MCP Support**: Model Context Protocol integration
 - **Hotel Agent**: Specialized agent for hospitality use cases
+- **Medical Agent**: Appointment scheduling with Google Calendar and Airtable
+- **Azure Blob Storage**: Recording storage via LiveKit Egress
 
 ### 4. Development & Testing
 - **Comprehensive test suite** with pytest
@@ -116,9 +153,18 @@ Production deployment with full features.
 - Dynamic TTS voice switching based on detected language
 - Support for multiple languages with appropriate voice models
 
-### 3. Testing Strategy
-- Unit tests for individual components
+### 3. SOLID Principles & Code Organization (2025 Refactoring)
+- **Single Responsibility**: Each module has one clear purpose
+- **High Cohesion**: Related code grouped together (50-150 lines per file)
+- **Low Coupling**: Minimal dependencies between modules
+- **Reusable Components**: Scheduling, conversation, and prompt modules can be shared
+- **Factory Pattern**: Tool handlers use factory functions for proper type introspection
+- **Example**: Medical agent refactored from 748 lines → 291 lines (61% reduction)
+
+### 4. Testing Strategy
+- Unit tests for individual components (12+ tests for medical agent modules)
 - Integration tests for end-to-end workflows
+- Mocked dependencies for fast, isolated unit tests
 - Evaluation framework for agent performance testing
 
 ## Deployment Options
@@ -142,7 +188,13 @@ Production deployment with full features.
 ## Current Development Status
 
 - **Core Agent**: Fully functional with OpenAI, Deepgram, and Cartesia integration
-- **N8N Integration**: In development for workflow automation
+- **Medical Agent (Camille)**: Production-ready medical appointment scheduler
+  - OpenAI Realtime API for natural French conversation
+  - Google Calendar integration via N8N webhooks
+  - Airtable persistence for patient records
+  - Azure Blob Storage for call recordings
+  - Modular architecture (scheduling, conversation, prompts modules)
+- **N8N Integration**: Production-ready for webhook automation
 - **Hotel Agent**: Specialized implementation for hospitality use cases
 - **Testing**: Comprehensive test suite with evaluation framework
 - **Documentation**: Setup guides and observability documentation

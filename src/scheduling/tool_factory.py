@@ -9,6 +9,10 @@ from typing import List, Optional
 from livekit import rtc
 from livekit.agents import AgentSession, function_tool
 
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent))
+
 from persistence.conversation_recorder import ConversationRecorder
 
 from .tool_handlers import (

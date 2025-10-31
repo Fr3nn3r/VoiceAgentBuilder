@@ -6,10 +6,13 @@ Factory functions create async handler functions with proper closures.
 """
 
 import logging
+import sys
+from pathlib import Path
 from typing import Any, Callable, Dict
 
 from livekit.agents import RunContext
 
+sys.path.append(str(Path(__file__).parent.parent))
 from persistence.conversation_recorder import ConversationRecorder
 
 from .webhook_client import SchedulingToolHandler
