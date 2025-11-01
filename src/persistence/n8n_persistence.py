@@ -60,6 +60,7 @@ class N8nConversationPersistence(ConversationPersistence):
         # Build metadata payload
         metadata = {
             "action": "store_conversation",
+            # Core conversation data
             "voice_agent_name": data.voice_agent_name,
             "audio_recording_url": data.audio_recording_url,
             "transcript": data.transcript,
@@ -70,6 +71,26 @@ class N8nConversationPersistence(ConversationPersistence):
             "appointment_date": data.appointment_date,
             "appointment_time": data.appointment_time,
             "reason": data.reason,
+            # Technical logging - LiveKit session identifiers
+            "livekit_room_name": data.livekit_room_name,
+            "livekit_job_id": data.livekit_job_id,
+            # Technical logging - Conversation metrics
+            "total_turns": data.total_turns,
+            "user_turns": data.user_turns,
+            "agent_turns": data.agent_turns,
+            # Technical logging - AI model usage
+            "llm_prompt_tokens": data.llm_prompt_tokens,
+            "llm_completion_tokens": data.llm_completion_tokens,
+            "llm_input_audio_tokens": data.llm_input_audio_tokens,
+            "llm_output_audio_tokens": data.llm_output_audio_tokens,
+            # Technical logging - Speech processing metrics
+            "stt_audio_duration_seconds": data.stt_audio_duration_seconds,
+            "tts_audio_duration_seconds": data.tts_audio_duration_seconds,
+            "tts_characters_count": data.tts_characters_count,
+            # Technical logging - Configuration info
+            "openai_model": data.openai_model,
+            "openai_voice": data.openai_voice,
+            "test_mode": data.test_mode,
         }
 
         # Remove None values to keep payload clean
@@ -89,10 +110,14 @@ class N8nConversationPersistence(ConversationPersistence):
                 # Send as multipart/form-data with audio file
                 form_data = aiohttp.FormData()
 
-                # Add metadata as JSON string
+                # Add metadata as JSON string with UTF-8 encoding
                 import json
 
-                form_data.add_field("metadata", json.dumps(metadata), content_type="application/json")
+                form_data.add_field(
+                    "metadata",
+                    json.dumps(metadata, ensure_ascii=False),
+                    content_type="application/json; charset=utf-8"
+                )
 
                 # Add audio file
                 form_data.add_field(
@@ -124,14 +149,16 @@ class N8nConversationPersistence(ConversationPersistence):
                         return False
 
             else:
-                # Send metadata only as JSON
-                headers = {"Content-Type": "application/json"}
+                # Send metadata only as JSON with UTF-8 encoding
+                import json
+
+                headers = {"Content-Type": "application/json; charset=utf-8"}
                 if self.api_token:
                     headers["Authorization"] = f"Bearer {self.api_token}"
 
                 async with self.session.post(
                     url,
-                    json=metadata,
+                    data=json.dumps(metadata, ensure_ascii=False).encode("utf-8"),
                     headers=headers,
                     timeout=aiohttp.ClientTimeout(total=self.timeout),
                 ) as response:

@@ -76,42 +76,27 @@ class SchedulingToolHandler:
         return result
 
     async def book_appointment(
-        self, start_datetime: str, end_datetime: str, summary: str
-    ) -> Dict[str, Any]:
-        """Book an appointment"""
-        payload = {
-            "action": "book_appointment",
-            "start_datetime": start_datetime,
-            "end_datetime": end_datetime,
-            "summary": summary,
-        }
-        result = await self._call_webhook("book_appointment", payload)
-        return result
-
-    async def log_appointment_details(
         self,
-        event: str,
-        date: str,
-        start_time: str,
-        end_time: str,
+        start_datetime: str,
+        end_datetime: str,
         patient_name: str,
         birth_date: Optional[str],
         phone_number: str,
         reason: str,
+        comments: Optional[str],
     ) -> Dict[str, Any]:
-        """Log appointment details to backend"""
+        """Book an appointment with patient details"""
         payload = {
-            "action": "log_appointment",
-            "event": event,
-            "date": date,
-            "start_time": start_time,
-            "end_time": end_time,
+            "action": "book_appointment",
+            "start_datetime": start_datetime,
+            "end_datetime": end_datetime,
             "patient_name": patient_name,
             "birth_date": birth_date,
             "phone_number": phone_number,
             "reason": reason,
+            "comments": comments,
         }
-        result = await self._call_webhook("log_appointment", payload)
+        result = await self._call_webhook("book_appointment", payload)
         return result
 
     async def close(self):

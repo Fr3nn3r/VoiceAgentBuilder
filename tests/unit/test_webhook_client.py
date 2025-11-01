@@ -61,36 +61,17 @@ async def test_book_appointment_success(handler):
     handler.session.post = MagicMock(return_value=mock_response)
 
     result = await handler.book_appointment(
-        "2025-11-15T10:30:00", "2025-11-15T11:00:00", "Medical Appointment | John Doe"
-    )
-
-    assert result["status"] == "success"
-    assert "event_id" in result
-
-
-@pytest.mark.asyncio
-async def test_log_appointment_details(handler):
-    """Test logging appointment details"""
-    mock_response = MagicMock()
-    mock_response.status = 200
-    mock_response.json = AsyncMock(return_value={"logged": True})
-    mock_response.__aenter__ = AsyncMock(return_value=mock_response)
-    mock_response.__aexit__ = AsyncMock(return_value=None)
-
-    handler.session.post = MagicMock(return_value=mock_response)
-
-    result = await handler.log_appointment_details(
-        event="Booked",
-        date="2025-11-15",
-        start_time="10:30",
-        end_time="11:00",
+        start_datetime="2025-11-15T10:30:00",
+        end_datetime="2025-11-15T11:00:00",
         patient_name="John Doe",
         birth_date="1990-05-15",
         phone_number="555-0123",
         reason="Annual checkup",
+        comments="Patient prefers morning appointments"
     )
 
-    assert result["logged"] is True
+    assert result["status"] == "success"
+    assert "event_id" in result
 
 
 @pytest.mark.asyncio

@@ -14,7 +14,6 @@ from src.persistence.conversation_recorder import ConversationRecorder
 from src.scheduling.tool_handlers import (
     create_check_availability_handler,
     create_book_appointment_handler,
-    create_log_appointment_handler,
 )
 from src.scheduling.webhook_client import SchedulingToolHandler
 
@@ -89,71 +88,23 @@ async def test_check_availability_webhook_failure(mock_tool_handler, mock_contex
 
 
 @pytest.mark.asyncio
-async def test_book_appointment_success(mock_tool_handler, mock_context):
+async def test_book_appointment_success(mock_tool_handler, mock_recorder, mock_context):
     """Test book appointment handler returns success on valid booking"""
     # Setup
     mock_tool_handler.book_appointment.return_value = {
         "status": "success",
         "event_id": "evt_123"
     }
-    handler_fn = create_book_appointment_handler(mock_tool_handler)
+    handler_fn = create_book_appointment_handler(mock_tool_handler, mock_recorder)
 
     raw_args = {
         "start_datetime": "2025-11-15T10:30:00",
         "end_datetime": "2025-11-15T11:00:00",
-        "summary": "Medical Appointment | Jean Dupont"
-    }
-
-    # Execute
-    result = await handler_fn(raw_args, mock_context)
-
-    # Verify
-    assert result["status"] == "success"
-    assert result["event_id"] == "evt_123"
-    mock_tool_handler.book_appointment.assert_called_once_with(
-        "2025-11-15T10:30:00",
-        "2025-11-15T11:00:00",
-        "Medical Appointment | Jean Dupont"
-    )
-
-
-@pytest.mark.asyncio
-async def test_book_appointment_webhook_failure(mock_tool_handler, mock_context):
-    """Test book appointment handler returns error on webhook failure"""
-    # Setup - simulate exception
-    mock_tool_handler.book_appointment.side_effect = Exception("Network error")
-    handler_fn = create_book_appointment_handler(mock_tool_handler)
-
-    raw_args = {
-        "start_datetime": "2025-11-15T10:30:00",
-        "end_datetime": "2025-11-15T11:00:00",
-        "summary": "Medical Appointment | Jean Dupont"
-    }
-
-    # Execute
-    result = await handler_fn(raw_args, mock_context)
-
-    # Verify - should return error dict instead of raising
-    assert "error" in result
-    assert "Network error" in result["error"]
-
-
-@pytest.mark.asyncio
-async def test_log_appointment_success(mock_tool_handler, mock_recorder, mock_context):
-    """Test log appointment handler captures patient info and logs to webhook"""
-    # Setup
-    mock_tool_handler.log_appointment_details.return_value = {"logged": True}
-    handler_fn = create_log_appointment_handler(mock_tool_handler, mock_recorder)
-
-    raw_args = {
-        "event": "Booked",
-        "date": "2025-11-15",
-        "start_time": "10:30",
-        "end_time": "11:00",
         "patient_name": "Jean Dupont",
         "birth_date": "1980-05-15",
         "phone_number": "0612345678",
-        "reason": "Consultation générale"
+        "reason": "Consultation générale",
+        "comments": "Patient prefers morning appointments"
     }
 
     # Execute
@@ -171,23 +122,30 @@ async def test_log_appointment_success(mock_tool_handler, mock_recorder, mock_co
         appointment_time="10:30"
     )
 
-    # Verify webhook was called
-    mock_tool_handler.log_appointment_details.assert_called_once()
-    assert result["logged"] is True
+    # Verify webhook was called with new parameters
+    assert result["status"] == "success"
+    assert result["event_id"] == "evt_123"
+    mock_tool_handler.book_appointment.assert_called_once_with(
+        "2025-11-15T10:30:00",
+        "2025-11-15T11:00:00",
+        "Jean Dupont",
+        "1980-05-15",
+        "0612345678",
+        "Consultation générale",
+        "Patient prefers morning appointments"
+    )
 
 
 @pytest.mark.asyncio
-async def test_log_appointment_webhook_failure(mock_tool_handler, mock_recorder, mock_context):
-    """Test log appointment handler handles webhook errors"""
-    # Setup - simulate webhook failure
-    mock_tool_handler.log_appointment_details.side_effect = Exception("Webhook unavailable")
-    handler_fn = create_log_appointment_handler(mock_tool_handler, mock_recorder)
+async def test_book_appointment_webhook_failure(mock_tool_handler, mock_recorder, mock_context):
+    """Test book appointment handler returns error on webhook failure"""
+    # Setup - simulate exception
+    mock_tool_handler.book_appointment.side_effect = Exception("Network error")
+    handler_fn = create_book_appointment_handler(mock_tool_handler, mock_recorder)
 
     raw_args = {
-        "event": "Booked",
-        "date": "2025-11-15",
-        "start_time": "10:30",
-        "end_time": "11:00",
+        "start_datetime": "2025-11-15T10:30:00",
+        "end_datetime": "2025-11-15T11:00:00",
         "patient_name": "Jean Dupont",
         "phone_number": "0612345678",
         "reason": "Consultation"
@@ -198,7 +156,8 @@ async def test_log_appointment_webhook_failure(mock_tool_handler, mock_recorder,
 
     # Verify - recorder should still be updated even if webhook fails
     mock_recorder.set_patient_info.assert_called_once()
+    mock_recorder.set_appointment_info.assert_called_once()
 
-    # Verify error is returned
+    # Verify - should return error dict instead of raising
     assert "error" in result
-    assert "Webhook unavailable" in result["error"]
+    assert "Network error" in result["error"]

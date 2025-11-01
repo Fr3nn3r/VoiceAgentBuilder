@@ -42,47 +42,28 @@ BOOK_APPOINTMENT_SCHEMA = {
                 "type": "string",
                 "description": "Confirmed appointment end time (ISO 8601)",
             },
-            "summary": {
+            "patient_name": {
                 "type": "string",
-                "description": "Appointment summary in format: 'Medical Appointment | {patient_name}'",
+                "description": "Full name of the patient",
             },
-        },
-        "required": ["start_datetime", "end_datetime", "summary"],
-    },
-}
-
-# Tool 3: Log appointment details
-LOG_APPOINTMENT_SCHEMA = {
-    "type": "function",
-    "name": "log_appointment_details",
-    "description": "Log all appointment details. Call IMMEDIATELY after booking, ONLY ONCE per appointment.",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "event": {
-                "type": "string",
-                "description": "Event type: 'Booked', 'Cancelled', etc.",
-            },
-            "date": {"type": "string", "description": "Appointment date"},
-            "start_time": {"type": "string", "description": "Start time"},
-            "end_time": {"type": "string", "description": "End time"},
-            "patient_name": {"type": "string", "description": "Full name"},
             "birth_date": {
                 "type": "string",
-                "description": "Birth date (for new patients)",
+                "description": "Birth date of patient (for new patients only, optional)",
             },
-            "phone_number": {"type": "string", "description": "Phone number"},
-            "reason": {"type": "string", "description": "Reason for visit"},
+            "phone_number": {
+                "type": "string",
+                "description": "Patient's phone number",
+            },
+            "reason": {
+                "type": "string",
+                "description": "Reason for visit / consultation reason",
+            },
+            "comments": {
+                "type": "string",
+                "description": "Additional notes or comments (optional)",
+            },
         },
-        "required": [
-            "event",
-            "date",
-            "start_time",
-            "end_time",
-            "patient_name",
-            "phone_number",
-            "reason",
-        ],
+        "required": ["start_datetime", "end_datetime", "patient_name", "phone_number", "reason"],
     },
 }
 

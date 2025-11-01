@@ -18,12 +18,10 @@ from persistence.conversation_recorder import ConversationRecorder
 from .tool_handlers import (
     create_book_appointment_handler,
     create_check_availability_handler,
-    create_log_appointment_handler,
 )
 from .tool_schemas import (
     BOOK_APPOINTMENT_SCHEMA,
     CHECK_AVAILABILITY_SCHEMA,
-    LOG_APPOINTMENT_SCHEMA,
 )
 from .webhook_client import SchedulingToolHandler
 
@@ -51,17 +49,15 @@ def create_scheduling_tools(
         >>> recorder = ConversationRecorder("Camille")
         >>> tools = create_scheduling_tools(handler, recorder)
         >>> len(tools)
-        3
+        2
     """
     # Create handler functions using factory pattern
     check_availability_fn = create_check_availability_handler(tool_handler)
-    book_appointment_fn = create_book_appointment_handler(tool_handler)
-    log_appointment_fn = create_log_appointment_handler(tool_handler, recorder)
+    book_appointment_fn = create_book_appointment_handler(tool_handler, recorder)
 
     # Assemble FunctionTool objects with schemas
     return [
         function_tool(check_availability_fn, raw_schema=CHECK_AVAILABILITY_SCHEMA),
         function_tool(book_appointment_fn, raw_schema=BOOK_APPOINTMENT_SCHEMA),
-        function_tool(log_appointment_fn, raw_schema=LOG_APPOINTMENT_SCHEMA),
         # function_tool(close_call_fn, raw_schema=CLOSE_CALL_SCHEMA),  # DISABLED
     ]

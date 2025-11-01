@@ -191,8 +191,17 @@ async def entrypoint(ctx: JobContext):
         # No audio_data needed - Egress handles the recording
         audio_data = None
 
-        # Build conversation data
+        # Collect usage metrics from LiveKit
+        usage_summary = usage_collector.get_summary()
+        logger.info(f"[Metrics] Usage summary: {usage_summary}")
+
+        # Calculate conversation turn metrics
+        user_turns_count = sum(1 for t in recorder.turns if t.role == "user")
+        agent_turns_count = sum(1 for t in recorder.turns if t.role == "agent")
+
+        # Build conversation data with technical logging
         conversation_data = ConversationData(
+            # Core conversation data
             voice_agent_name=recorder.voice_agent_name,
             transcript=transcript,
             conversation_date=datetime.now(timezone.utc).date().isoformat(),
@@ -202,17 +211,41 @@ async def entrypoint(ctx: JobContext):
             reason=recorder.reason,
             appointment_date=recorder.appointment_date,
             appointment_time=recorder.appointment_time,
-            audio_recording_url=recording_url,  # Egress recording URL
+            audio_recording_url=recording_url,
+            # Technical logging - LiveKit session identifiers
+            livekit_room_name=ctx.room.name,
+            livekit_job_id=ctx.job.id,
+            # Technical logging - Conversation metrics
+            total_turns=recorder.get_turn_count(),
+            user_turns=user_turns_count,
+            agent_turns=agent_turns_count,
+            # Technical logging - AI model usage
+            llm_prompt_tokens=usage_summary.llm_prompt_tokens,
+            llm_completion_tokens=usage_summary.llm_completion_tokens,
+            llm_input_audio_tokens=usage_summary.llm_input_audio_tokens,
+            llm_output_audio_tokens=usage_summary.llm_output_audio_tokens,
+            # Technical logging - Speech processing metrics
+            stt_audio_duration_seconds=usage_summary.stt_audio_duration,
+            tts_audio_duration_seconds=usage_summary.tts_audio_duration,
+            tts_characters_count=usage_summary.tts_characters_count,
+            # Technical logging - Configuration info
+            openai_model=OPENAI_MODEL,
+            openai_voice=OPENAI_VOICE,
+            test_mode=test_mode,
         )
 
         # Store via persistence layer (with audio)
-        success = await persistence.store_conversation(
-            conversation_data, audio_data=audio_data
-        )
-        if success:
-            logger.info("[Conversation] Successfully stored conversation data")
-        else:
-            logger.error("[Conversation] Failed to store conversation data")
+        logger.info("[Conversation] Calling N8N webhook...")
+        try:
+            success = await persistence.store_conversation(
+                conversation_data, audio_data=audio_data
+            )
+            if success:
+                logger.info("[Conversation] ✅ WEBHOOK SUCCESS - Data stored to N8N")
+            else:
+                logger.error("[Conversation] ❌ WEBHOOK FAILED - Check N8N logs for details")
+        except Exception as e:
+            logger.error(f"[Conversation] ❌ WEBHOOK EXCEPTION: {type(e).__name__}: {e}")
 
     async def close_egress():
         """Close egress recorder"""
@@ -221,7 +254,8 @@ async def entrypoint(ctx: JobContext):
 
     ctx.add_shutdown_callback(log_usage)
     ctx.add_shutdown_callback(store_conversation)
-    ctx.add_shutdown_callback(persistence.close)
+    # NOTE: persistence.close() removed - closing session early prevents webhook response
+    # The aiohttp session will be cleaned up by Python's garbage collector
     ctx.add_shutdown_callback(tool_handler.close)
     ctx.add_shutdown_callback(close_egress)
 
@@ -282,6 +316,10 @@ async def entrypoint(ctx: JobContext):
                         logger.info("[Egress] Recording stopped successfully")
                     else:
                         logger.warning("[Egress] Failed to stop recording")
+
+                # Wait for shutdown callbacks to complete (especially store_conversation webhook)
+                logger.info("[Room] Waiting for cleanup tasks to complete...")
+                await asyncio.sleep(3.0)  # Give 3 seconds for webhook to complete
 
                 # Shutdown agent gracefully (triggers shutdown callbacks for cleanup)
                 logger.info("[Room] Initiating agent shutdown after user disconnect")

@@ -15,6 +15,7 @@ class ConversationData:
     Maps to Airtable 'Conversations' table schema.
     """
 
+    # Core conversation data
     voice_agent_name: str
     transcript: str
     conversation_date: str  # ISO format: "2025-10-30"
@@ -25,6 +26,31 @@ class ConversationData:
     appointment_time: Optional[str] = None
     birth_date: Optional[str] = None
     reason: Optional[str] = None
+
+    # Technical logging - LiveKit session identifiers
+    livekit_room_name: Optional[str] = None
+    livekit_job_id: Optional[str] = None
+
+    # Technical logging - Conversation metrics
+    total_turns: Optional[int] = None
+    user_turns: Optional[int] = None
+    agent_turns: Optional[int] = None
+
+    # Technical logging - AI model usage (OpenAI Realtime API)
+    llm_prompt_tokens: Optional[int] = None
+    llm_completion_tokens: Optional[int] = None
+    llm_input_audio_tokens: Optional[int] = None
+    llm_output_audio_tokens: Optional[int] = None
+
+    # Technical logging - Speech processing metrics
+    stt_audio_duration_seconds: Optional[float] = None
+    tts_audio_duration_seconds: Optional[float] = None
+    tts_characters_count: Optional[int] = None
+
+    # Technical logging - Configuration info
+    openai_model: Optional[str] = None
+    openai_voice: Optional[str] = None
+    test_mode: Optional[bool] = None
 
 
 class ConversationPersistence(ABC):

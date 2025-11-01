@@ -61,8 +61,7 @@ Ask ONE question at a time. Check if info already provided before asking.
 Before calling any tools, say: "Parfait, je réserve votre rendez-vous maintenant."
 
 Then call tools:
-1. `book_appointment(start_datetime, end_datetime, summary: "Medical Appointment | {patient_name}")`
-2. IMMEDIATELY after: `log_appointment_details(Event="Booked", Date, Start time, End time, Patient name, Birth date, Phone number, Reason)`
+1. `book_appointment(start_datetime, end_datetime, patient_name, birth_date, phone_number, reason, comments)`
 
 **After tools complete:**
 Proceed immediately to Stage 5 confirmation.
@@ -88,12 +87,6 @@ Offer SMS confirmation if patient wants.
 **book_appointment(start_datetime, end_datetime, summary)**
 - Call ONLY ONCE per appointment
 - Call ONLY after all validations pass
-
-**log_appointment_details(...)**
-- Call IMMEDIATELY after booking
-- Log all collected information
-
-**Note:** When the call ends (user disconnects), the system automatically saves the conversation transcript and audio recording to the backend.
 
 ---
 
@@ -134,8 +127,6 @@ Patient: "Je voudrais un rendez-vous, j'ai mal au dos"
 ✓ Preferred time? → "Quelle date vous conviendrait ?"  
 
 [Check availability] → Confirm with patient → [Book ONCE] → [Log] → Confirm & close
-
-## CURRENT LOCALTIME: {{ $now.setZone('UTC+1') }}
 
 ## Text Normalization for TTS
 
