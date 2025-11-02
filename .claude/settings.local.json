@@ -12,7 +12,8 @@
       "Bash(taskkill:*)",
       "Bash(curl:*)",
       "Bash(python -m pytest:*)",
-      "Bash(powershell -Command \"(Get-Content ''src\\medical_agent.py'' | Measure-Object -Line).Lines\")"
+      "Bash(powershell -Command \"(Get-Content ''src\\medical_agent.py'' | Measure-Object -Line).Lines\")",
+      "Bash(python scripts/test_observability_hello_world.py:*)"
     ],
     "deny": [],
     "ask": []

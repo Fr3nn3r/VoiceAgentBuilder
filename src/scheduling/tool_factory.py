@@ -31,6 +31,7 @@ def create_scheduling_tools(
     recorder: ConversationRecorder,
     session: Optional[AgentSession] = None,
     room: Optional[rtc.Room] = None,
+    observability_tracer=None,  # Week 3: Optional observability tracer
 ) -> List:
     """
     Create LiveKit FunctionTool objects for scheduling.
@@ -51,9 +52,13 @@ def create_scheduling_tools(
         >>> len(tools)
         2
     """
-    # Create handler functions using factory pattern
-    check_availability_fn = create_check_availability_handler(tool_handler)
-    book_appointment_fn = create_book_appointment_handler(tool_handler, recorder)
+    # Create handler functions using factory pattern (Week 3: with observability)
+    check_availability_fn = create_check_availability_handler(
+        tool_handler, observability_tracer
+    )
+    book_appointment_fn = create_book_appointment_handler(
+        tool_handler, recorder, observability_tracer
+    )
 
     # Assemble FunctionTool objects with schemas
     return [

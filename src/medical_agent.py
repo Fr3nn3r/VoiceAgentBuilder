@@ -33,6 +33,7 @@ from conversation import (
     FalseInterruptionHandler,
     UserTranscriptionHandler,
 )
+from observability import ObservabilityEventHandler, ObservabilityTracer
 from persistence import ConversationData, create_persistence
 from persistence.conversation_recorder import ConversationRecorder
 from persistence.egress_recording import create_egress_recorder_from_env
@@ -99,6 +100,18 @@ async def entrypoint(ctx: JobContext):
     recorder = ConversationRecorder(voice_agent_name=AGENT_NAME)
     logger.info(f"[Config] Initialized conversation recorder for {AGENT_NAME}")
 
+    # Initialize observability tracer (Week 2)
+    observability_tracer = ObservabilityTracer.from_env()
+    if observability_tracer.config.enabled:
+        logger.info(
+            f"[Config] Observability enabled - environment: {observability_tracer.config.environment}"
+        )
+        logger.info(
+            f"[Config] LangSmith project: {observability_tracer.config.langsmith_project}"
+        )
+    else:
+        logger.info("[Config] Observability disabled")
+
     # Initialize Egress recorder for room audio recording
     egress_recorder = create_egress_recorder_from_env()
     if egress_recorder:
@@ -135,11 +148,18 @@ async def entrypoint(ctx: JobContext):
         vad=ctx.proc.userdata["vad"],
     )
 
-    # Create scheduling tools with recorder, session, and room
+    # Create scheduling tools with recorder, session, room, and observability (Week 3)
     scheduling_tools = create_scheduling_tools(
-        tool_handler, recorder, session, ctx.room
+        tool_handler, recorder, session, ctx.room, observability_tracer
     )
     logger.info(f"[Config] Created {len(scheduling_tools)} scheduling tools")
+
+    # Initialize observability event handler (Week 2)
+    observability_handler = ObservabilityEventHandler(
+        tracer=observability_tracer,
+        ctx=ctx,
+        agent_name=AGENT_NAME,
+    )
 
     # Register conversation event handlers
     user_handler = UserTranscriptionHandler(recorder)
@@ -258,6 +278,8 @@ async def entrypoint(ctx: JobContext):
     # The aiohttp session will be cleaned up by Python's garbage collector
     ctx.add_shutdown_callback(tool_handler.close)
     ctx.add_shutdown_callback(close_egress)
+    ctx.add_shutdown_callback(observability_handler.on_session_end)  # Week 2
+    ctx.add_shutdown_callback(observability_tracer.close)  # Week 2
 
     # Create agent with system prompt and tools
     agent = Agent(instructions=system_prompt, tools=scheduling_tools)
@@ -275,6 +297,9 @@ async def entrypoint(ctx: JobContext):
     await ctx.connect()
 
     logger.info("[Medical Agent] Agent connected and ready")
+
+    # Start observability session trace (Week 2)
+    await observability_handler.on_session_start(session)
 
     # Start Egress recording if enabled
     egress_id = None
