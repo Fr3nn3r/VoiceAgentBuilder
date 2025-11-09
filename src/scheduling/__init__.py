@@ -5,7 +5,7 @@ Provides webhook-based scheduling tools for checking availability,
 booking appointments, and logging appointment details.
 """
 
-from .tool_factory import create_scheduling_tools
+from .tool_factory import create_calendar_agent_tool, create_scheduling_tools
 from .webhook_client import SchedulingToolHandler
 
-__all__ = ["SchedulingToolHandler", "create_scheduling_tools"]
+__all__ = ["SchedulingToolHandler", "create_scheduling_tools", "create_calendar_agent_tool"]

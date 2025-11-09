@@ -17,11 +17,13 @@ from persistence.conversation_recorder import ConversationRecorder
 
 from .tool_handlers import (
     create_book_appointment_handler,
+    create_calendar_agent_handler,
     create_check_availability_handler,
 )
 from .tool_schemas import (
     BOOK_APPOINTMENT_SCHEMA,
     CHECK_AVAILABILITY_SCHEMA,
+    CALENDAR_AGENT_SCHEMA,
 )
 from .webhook_client import SchedulingToolHandler
 
@@ -66,3 +68,23 @@ def create_scheduling_tools(
         function_tool(book_appointment_fn, raw_schema=BOOK_APPOINTMENT_SCHEMA),
         # function_tool(close_call_fn, raw_schema=CLOSE_CALL_SCHEMA),  # DISABLED
     ]
+
+
+def create_calendar_agent_tool(
+    tool_handler: SchedulingToolHandler, observability_tracer=None
+):
+    """
+    Create LiveKit FunctionTool object for the secretary calendar agent.
+
+    Args:
+        tool_handler: Webhook client for scheduling operations
+        observability_tracer: Optional tracer for observability (Week 3)
+
+    Returns:
+        Single FunctionTool configured for the calendar agent
+    """
+    calendar_agent_fn = create_calendar_agent_handler(
+        tool_handler, observability_tracer
+    )
+
+    return function_tool(calendar_agent_fn, raw_schema=CALENDAR_AGENT_SCHEMA)

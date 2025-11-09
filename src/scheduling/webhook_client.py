@@ -99,6 +99,15 @@ class SchedulingToolHandler:
         result = await self._call_webhook("book_appointment", payload)
         return result
 
+    async def calendar_agent(self, query: str) -> Dict[str, Any]:
+        """Execute a calendar agent request"""
+        payload = {
+            "action": "calendar_agent",
+            "query": query,
+        }
+        result = await self._call_webhook("calendar_agent", payload)
+        return result
+
     async def close(self):
         """Close HTTP session"""
         if self.session and not self.session.closed:

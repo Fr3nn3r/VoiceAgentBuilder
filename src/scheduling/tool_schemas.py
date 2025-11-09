@@ -63,7 +63,30 @@ BOOK_APPOINTMENT_SCHEMA = {
                 "description": "Additional notes or comments (optional)",
             },
         },
-        "required": ["start_datetime", "end_datetime", "patient_name", "phone_number", "reason"],
+        "required": [
+            "start_datetime",
+            "end_datetime",
+            "patient_name",
+            "phone_number",
+            "reason",
+        ],
+    },
+}
+
+# Tool 3: Calendar agent query
+CALENDAR_AGENT_SCHEMA = {
+    "type": "function",
+    "name": "calendar_agent",
+    "description": "Submit a calendar management request from a manager to a secretary. The query is a concise, military-style instruction describing the desired action.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "query": {
+                "type": "string",
+                "description": "Military-style natural language request (e.g., 'Schedule weekly sync with product team next Tuesday 1300-1400 UTC').",
+            },
+        },
+        "required": ["query"],
     },
 }
 

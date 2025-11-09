@@ -199,3 +199,50 @@ def create_book_appointment_handler(
                 return {"error": str(e)}
 
     return book_appointment_handler
+
+
+def create_calendar_agent_handler(
+    tool_handler: SchedulingToolHandler, observability_tracer=None
+) -> Callable:
+    """
+    Create handler function for calendar agent requests.
+
+    Args:
+        tool_handler: Webhook client for scheduling operations
+        observability_tracer: Optional tracer for observability (Week 3)
+
+    Returns:
+        Async function that forwards calendar queries to N8N
+    """
+
+    async def calendar_agent_handler(
+        raw_arguments: dict, context: RunContext
+    ) -> Dict[str, Any]:
+        """Forward military-style calendar queries to N8N"""
+        logger.info(f"[Tool] calendar_agent called with {raw_arguments}")
+
+        query = raw_arguments.get("query", "")
+
+        if observability_tracer and observability_tracer.config.enabled:
+            from observability import redact_phi
+
+            redacted_inputs = redact_phi({"query": query})
+
+            async with observability_tracer.tool_span(
+                "tool.calendar_agent", redacted_inputs
+            ):
+                try:
+                    result = await tool_handler.calendar_agent(query=query)
+                    return redact_phi(result)
+                except Exception as e:
+                    logger.error(f"[Tool] calendar_agent error: {e}")
+                    return {"error": str(e)}
+        else:
+            try:
+                result = await tool_handler.calendar_agent(query=query)
+                return result
+            except Exception as e:
+                logger.error(f"[Tool] calendar_agent error: {e}")
+                return {"error": str(e)}
+
+    return calendar_agent_handler
