@@ -19,11 +19,13 @@ from .tool_handlers import (
     create_book_appointment_handler,
     create_calendar_agent_handler,
     create_check_availability_handler,
+    create_search_agent_handler,
 )
 from .tool_schemas import (
     BOOK_APPOINTMENT_SCHEMA,
     CHECK_AVAILABILITY_SCHEMA,
     CALENDAR_AGENT_SCHEMA,
+    SEARCH_AGENT_SCHEMA,
 )
 from .webhook_client import SchedulingToolHandler
 
@@ -88,3 +90,25 @@ def create_calendar_agent_tool(
     )
 
     return function_tool(calendar_agent_fn, raw_schema=CALENDAR_AGENT_SCHEMA)
+
+
+def create_secretary_tools(
+    tool_handler: SchedulingToolHandler, observability_tracer=None
+):
+    """
+    Create the collection of secretary tools (calendar + search).
+
+    Args:
+        tool_handler: Webhook client for scheduling/search operations
+        observability_tracer: Optional tracer for observability (Week 3)
+
+    Returns:
+        List containing both LiveKit FunctionTool objects
+    """
+    calendar_tool = create_calendar_agent_handler(tool_handler, observability_tracer)
+    search_tool = create_search_agent_handler(tool_handler, observability_tracer)
+
+    return [
+        function_tool(calendar_tool, raw_schema=CALENDAR_AGENT_SCHEMA),
+        function_tool(search_tool, raw_schema=SEARCH_AGENT_SCHEMA),
+    ]

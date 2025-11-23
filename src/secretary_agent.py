@@ -37,7 +37,7 @@ from persistence import ConversationData, create_persistence
 from persistence.conversation_recorder import ConversationRecorder
 from persistence.egress_recording import create_egress_recorder_from_env
 from prompts import load_system_prompt
-from scheduling import SchedulingToolHandler, create_calendar_agent_tool
+from scheduling import SchedulingToolHandler, create_secretary_tools
 
 logger = logging.getLogger("secretary_agent")
 load_dotenv(override=True)
@@ -46,8 +46,27 @@ load_dotenv(override=True)
 AGENT_NAME = "Sarah"
 
 # OpenAI Realtime configuration
-OPENAI_MODEL = "gpt-4o-realtime-preview-2024-12-17"
-OPENAI_VOICE = "aria"  # Female English voice
+OPENAI_MODEL = "gpt-realtime-2025-08-28"
+# OPENAI_MODEL = "gpt-realtime-mini-2025-10-06"
+SUPPORTED_OPENAI_VOICES = {
+    "alloy",
+    "ash",
+    "ballad",
+    "coral",
+    "echo",
+    "sage",
+    "shimmer",
+    "verse",
+    "marin",
+    "cedar",
+}
+OPENAI_VOICE = os.getenv("OPENAI_VOICE", "alloy").lower()
+
+if OPENAI_VOICE not in SUPPORTED_OPENAI_VOICES:
+    supported_list = ", ".join(sorted(SUPPORTED_OPENAI_VOICES))
+    raise ValueError(
+        f"Unsupported OPENAI_VOICE '{OPENAI_VOICE}'. Supported voices: {supported_list}"
+    )
 
 
 def prewarm(proc: JobProcess):
@@ -65,6 +84,11 @@ async def entrypoint(ctx: JobContext):
         level=getattr(logging, log_level),
         format="[%(asctime)s] %(levelname)s [%(name)s] %(message)s",
     )
+
+    if os.getenv("OPENAI_TRACE", "").lower() in {"true", "1", "yes", "debug"}:
+        logging.getLogger("livekit.plugins.openai").setLevel(logging.DEBUG)
+        logging.getLogger("livekit.plugins.openai.realtime").setLevel(logging.DEBUG)
+        logging.getLogger("livekit.agents.voice").setLevel(logging.DEBUG)
 
     logger.info("[Secretary Agent] Starting Sarah - executive assistant")
     logger.info(f"[Config] Log Level: {log_level}")
@@ -90,8 +114,8 @@ async def entrypoint(ctx: JobContext):
     logger.info(f"[Config] Voice: {OPENAI_VOICE}")
 
     # Load system prompt
-    system_prompt = load_system_prompt("camille-en")
-    logger.info("[Config] Loaded system prompt from prompts/camille-en.md")
+    system_prompt = load_system_prompt("sarah-en")
+    logger.info("[Config] Loaded system prompt from prompts/sarah-en.md")
 
     # Initialize conversation recorder
     recorder = ConversationRecorder(voice_agent_name=AGENT_NAME)
@@ -145,9 +169,9 @@ async def entrypoint(ctx: JobContext):
         vad=ctx.proc.userdata["vad"],
     )
 
-    # Create calendar tool with observability
-    calendar_tool = create_calendar_agent_tool(tool_handler, observability_tracer)
-    logger.info("[Config] Created calendar agent tool")
+    # Create secretary tools with observability
+    secretary_tools = create_secretary_tools(tool_handler, observability_tracer)
+    logger.info(f"[Config] Created {len(secretary_tools)} secretary tools")
 
     # Initialize observability event handler
     observability_handler = ObservabilityEventHandler(
@@ -160,6 +184,25 @@ async def entrypoint(ctx: JobContext):
     user_handler = UserTranscriptionHandler(recorder)
     agent_handler = AgentResponseHandler(recorder)
     interruption_handler = FalseInterruptionHandler(session)
+
+    @session.on("agent_state_changed")
+    def on_agent_state_changed(ev):
+        logger.debug(f"[State] Agent state {ev.old_state} -> {ev.new_state}")
+
+    @session.on("user_state_changed")
+    def on_user_state_changed(ev):
+        logger.debug(f"[State] User state {ev.old_state} -> {ev.new_state}")
+
+    @session.on("speech_created")
+    def on_speech_created(ev):
+        logger.info(
+            f"[Speech] Created (source={ev.source}, user_initiated={ev.user_initiated})"
+        )
+
+    @session.on("error")
+    def on_session_error(ev):
+        err = getattr(ev.error, "message", repr(ev.error))
+        logger.error(f"[Realtime] Error from {type(ev.source).__name__}: {err}")
 
     session.on("user_input_transcribed")(user_handler)
     session.on("conversation_item_added")(agent_handler)
@@ -263,7 +306,7 @@ async def entrypoint(ctx: JobContext):
     ctx.add_shutdown_callback(observability_handler.on_session_end)
     ctx.add_shutdown_callback(observability_tracer.close)
 
-    agent = Agent(instructions=system_prompt, tools=[calendar_tool])
+    agent = Agent(instructions=system_prompt, tools=secretary_tools)
 
     await session.start(
         agent=agent,
@@ -338,11 +381,20 @@ async def entrypoint(ctx: JobContext):
     time_of_day = "morning" if hour < 12 else "afternoon"
 
     greeting_instruction = f"""Greet the caller with exactly this:
-"Good {time_of_day}, Mr. Brunner's. How can I help you?"
-Keep the tone professional and concise."""
+"Good {time_of_day}, Mr. Brunner. How can I help you?"
+Keep the tone dynamic and energic."""
 
-    await session.generate_reply(instructions=greeting_instruction)
-    logger.info("[Greeting] Greeting delivered via Realtime API")
+    try:
+        speech_handle = await session.generate_reply(instructions=greeting_instruction)
+        logger.info(
+            "[Greeting] generate_reply returned handle=%s steps=%s",
+            speech_handle,
+            getattr(speech_handle, "num_steps", "n/a"),
+        )
+    except Exception as greeting_error:
+        logger.exception("[Greeting] generate_reply raised: %s", greeting_error)
+    else:
+        logger.info("[Greeting] Greeting delivered via Realtime API")
 
     logger.info("[Secretary Agent] Agent ready and listening")
 

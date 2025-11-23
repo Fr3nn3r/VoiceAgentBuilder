@@ -90,6 +90,23 @@ CALENDAR_AGENT_SCHEMA = {
     },
 }
 
+# Tool 4: Search agent query
+SEARCH_AGENT_SCHEMA = {
+    "type": "function",
+    "name": "search_agent",
+    "description": "Execute a concierge-style search action such as finding hotels, restaurants, or flights. Provide the manager's request verbatim.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "query": {
+                "type": "string",
+                "description": "Natural language search request (e.g., 'Find a boutique hotel in Paris for next weekend').",
+            },
+        },
+        "required": ["query"],
+    },
+}
+
 # Disabled: Close call tool (was closing before agent finished speaking)
 # CLOSE_CALL_SCHEMA = {
 #     "type": "function",

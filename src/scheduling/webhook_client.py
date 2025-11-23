@@ -57,7 +57,7 @@ class SchedulingToolHandler:
                     logger.error(f"[Webhook] Error {response.status}: {error_text}")
                     return {"error": f"HTTP {response.status}", "detail": error_text}
         except asyncio.TimeoutError:
-            logger.error(f"[Webhook] Timeout after {timeout}s")
+            logger.error(f"[Webhook] Timeout after {timeout}s calling '{endpoint}'")
             return {"error": "timeout", "detail": "Request timed out"}
         except Exception as e:
             logger.error(f"[Webhook] Exception: {type(e).__name__}: {e}")
@@ -105,7 +105,16 @@ class SchedulingToolHandler:
             "action": "calendar_agent",
             "query": query,
         }
-        result = await self._call_webhook("calendar_agent", payload)
+        result = await self._call_webhook("calendar_agent", payload, timeout=15.0)
+        return result
+
+    async def search_agent(self, query: str) -> Dict[str, Any]:
+        """Execute a concierge search request"""
+        payload = {
+            "action": "search_agent",
+            "query": query,
+        }
+        result = await self._call_webhook("search_agent", payload, timeout=20.0)
         return result
 
     async def close(self):
